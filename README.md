@@ -3,9 +3,10 @@
 A voice-only assistant, built laptop-first and moving to a Raspberry Pi 5.
 Say **"Hey Alfred"**, hear a chime, then just talk. You can interrupt Alfred at
 any time. Questions that need current facts (weather, news, prices) are looked
-up on the web.
+up on the web. Bigger jobs ("compare budget mechanical keyboards") run in the
+background with Claude while you carry on; a soft chime tells you when one is done.
 
-**Status:** Day 1 of 5, "Talk to Alfred". Plan and tracker:
+**Status:** Day 2 of 5, "Alfred does things". Plan and tracker:
 <https://claude.ai/artifact/DZTBL6AZixmsbfRg5aHsQW>
 
 ## How it works
@@ -19,8 +20,12 @@ microphone ─► echo canceller ─► wake word ("Hey Alfred")
                     │ needs fresh facts
                     ▼
           router: GPT-6 Luna + web search   (run by OpenAI)
-                    │
-speaker  ◄──────────┘   session closes after 25 s of silence
+                    │ bigger job
+                    ▼
+          background job: Claude (Agent SDK) ──► result saved in ~/.alfred/alfred.db
+                    │                                  │ finished: chime,
+speaker  ◄──────────┘                                  ▼ told at next "Hey Alfred"
+          session closes after 25 s of silence
 ```
 
 | File | Job |
@@ -29,20 +34,25 @@ speaker  ◄──────────┘   session closes after 25 s of sil
 | `alfred/audio.py` | Microphone and speaker, with WebRTC echo cancellation so Alfred doesn't hear itself |
 | `alfred/audio_log.py` | Debug log of mic and speaker activity (who is talking, levels, device problems) |
 | `alfred/wakeword.py` | Runs the three openWakeWord models in `models/` on the microphone audio |
-| `alfred/voice.py` | One GPT-Live conversation through Pipecat, and the bridge between Pipecat and the audio engine |
+| `alfred/voice.py` | One GPT-Live conversation through Pipecat |
+| `alfred/transport.py` | The bridge between Pipecat and the audio engine |
+| `alfred/tools.py` | What the router can do besides web search: start, check and stop background jobs |
+| `alfred/tasks.py` | Runs background jobs with the Claude Agent SDK, and resumes them after a restart |
+| `alfred/db.py` | The SQLite file that records jobs |
 | `alfred/config.py` | Reads settings from `.env` |
-| `sounds/listening_start.wav` | Played when Alfred hears the wake word (16 kHz mono) |
-| `prompts/voice.md`, `prompts/router.md` | What GPT-Live and the router are told. Edit these to change Alfred's behaviour |
+| `sounds/listening_start.wav`, `sounds/task_done.wav` | Played when Alfred wakes, and when a job finishes (16 kHz mono) |
+| `prompts/voice.md`, `prompts/router.md`, `prompts/agent.md` | What GPT-Live, the router and Claude are told. Edit these to change Alfred's behaviour |
 
 ## Setup (macOS)
 
-You need [uv](https://docs.astral.sh/uv/) and an OpenAI API key with access to
-`gpt-live-1` and `gpt-6-luna`.
+You need [uv](https://docs.astral.sh/uv/), an OpenAI API key with access to
+`gpt-live-1` and `gpt-6-luna`, and a Claude sign-in for background jobs: either your
+Claude plan (`claude setup-token`) or an API key. See `.env.example`.
 
 ```bash
 cd alfred-v2
 uv sync                 # creates .venv and uv.lock (installs Python 3.12 if needed)
-cp .env.example .env    # then put your OPENAI_API_KEY in .env
+cp .env.example .env    # then fill in your keys
 ```
 
 The first time you run Alfred, macOS asks for microphone access for your
@@ -97,6 +107,19 @@ Record the results in the tracker's "Measured results" table.
 If Alfred keeps hearing itself on the laptop speakers, use headphones for now
 and note it in the tracker. The Pi's speaker setup will be tuned on Day 5.
 
+### Day 2 manual checks
+
+1. **Quick job:** "Hey Alfred, find me two good budget mechanical keyboards." Alfred
+   either answers within about 12 s or says it's working on it.
+2. **Long job:** ask for something bigger ("compare three robot vacuums under 15,000 pesos
+   and save notes"). Let the session close. You hear the done chime; say "Hey Alfred" and
+   Alfred tells you the result first. Saved notes are in `~/.alfred/workspace`.
+3. **Check and stop:** start a long job, then ask "how's my job going?" and "stop that".
+4. **Restart:** start a long job, press Ctrl+C, run `uv run alfred` again. The log shows
+   "Resumed 1 unfinished job(s)" and the job finishes.
+
+Jobs, their results and costs are in the log (`Task 3 done: ...`, `about $0.004`).
+
 ## Logs
 
 Every run writes a full debug log to `logs/alfred-<date>-<time>.log`, while the
@@ -122,17 +145,9 @@ Compare the two with headphones and with the laptop speakers.
 
 ## Alfred's voice
 
-Alfred uses a custom GPT-Live voice made from a written description (OpenAI's
-prompt-to-voice). Its ID goes in `.env` as `ALFRED_VOICE`; leave it empty for the default voice.
-
-- ID: `voice_6ae46f5f3ddc8191836ada336e735089` (name `alfred-butler`, created Oct 30, 2026)
-- Description: "Older adult male, refined Received Pronunciation British accent, low-medium
-  pitch, warm and calm timbre, measured unhurried pace, impeccably polite with a hint of dry wit."
-
-To make a new one, `POST https://api.openai.com/v1/audio/voices` with `type: "prompt"`,
-`name`, `model: "auto"`, the description as `prompt`, and a `script_hint` of a few
-sentences (short hints are rejected). Describe qualities only: naming a real person or
-character is not allowed.
+Alfred uses `vesper`, GPT-Live's built-in British voice (`ALFRED_VOICE` in `.env`). Its
+manner (courteous, dry British humour) comes from `prompts/voice.md`. Other built-in voices
+include `marin` (default), `cedar`, `stone` and `willow` (Irish), and `quartz` (Australian).
 
 ## Settings
 

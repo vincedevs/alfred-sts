@@ -27,12 +27,25 @@ class Config:
     output_device: int | str | None = None
     echo_cancellation: bool = True
     log_level: str = "INFO"  # what the terminal shows; the log file always gets everything
+    data_dir: Path = Path.home() / ".alfred"  # database and Claude's workspace
+    agent_model: str = "claude-haiku-5-5"  # Claude model for background jobs
+    task_budget_usd: float = 0.25  # a job stops if it would cost more than this
+
+    @property
+    def database_path(self) -> Path:
+        return self.data_dir / "alfred.db"
+
+    @property
+    def workspace_dir(self) -> Path:
+        """The only folder Claude may read and write files in."""
+        return self.data_dir / "workspace"
 
 
 def load_config(env: Mapping[str, str] | None = None) -> Config:
     """Build a Config from `env`, or from the real environment plus .env if `env` is None."""
     if env is None:
-        load_dotenv(PROJECT_ROOT / ".env")
+        # override: .env wins over variables left in your shell (e.g. by `source .env`).
+        load_dotenv(PROJECT_ROOT / ".env", override=True)
         env = os.environ
 
     api_key = env.get("OPENAI_API_KEY", "").strip()
@@ -52,7 +65,17 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         output_device=_device(env.get("ALFRED_OUTPUT_DEVICE")),
         echo_cancellation=_on_off(env, "ALFRED_ECHO_CANCELLATION", defaults.echo_cancellation),
         log_level=(env.get("ALFRED_LOG_LEVEL") or defaults.log_level).upper(),
+        data_dir=Path(env.get("ALFRED_DATA") or defaults.data_dir).expanduser(),
+        agent_model=env.get("ALFRED_AGENT_MODEL") or defaults.agent_model,
+        task_budget_usd=_number(
+            env, "ALFRED_TASK_BUDGET_USD", defaults.task_budget_usd, 0.01, 10.0
+        ),
     )
+
+
+def load_prompt(name: str) -> str:
+    """Prompts live as plain text in prompts/<name>.md."""
+    return (PROJECT_ROOT / "prompts" / f"{name}.md").read_text(encoding="utf-8").strip()
 
 
 def _number(env: Mapping[str, str], name: str, default: float, low: float, high: float) -> float:

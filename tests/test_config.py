@@ -11,6 +11,8 @@ def test_defaults_need_only_the_api_key():
     assert config.idle_seconds == 25.0
     assert config.input_device is None
     assert config.echo_cancellation is True
+    assert config.agent_model == "claude-haiku-5-5"
+    assert config.workspace_dir.name == "workspace"
 
 
 def test_missing_api_key_explains_the_fix():
@@ -43,7 +45,7 @@ def test_bad_threshold_is_rejected(value):
 
 
 def test_prompt_files_exist():
-    for name in ("voice", "router"):
+    for name in ("voice", "router", "agent"):
         assert (PROJECT_ROOT / "prompts" / f"{name}.md").read_text().strip()
 
 
@@ -56,3 +58,12 @@ def test_echo_cancellation_switch(value, expected):
 def test_bad_switch_value_is_rejected():
     with pytest.raises(ConfigError, match="ALFRED_ECHO_CANCELLATION"):
         load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_ECHO_CANCELLATION": "maybe"})
+
+
+def test_data_folder_and_budget(tmp_path):
+    config = load_config(
+        {"OPENAI_API_KEY": "sk-test", "ALFRED_DATA": str(tmp_path), "ALFRED_TASK_BUDGET_USD": "0.5"}
+    )
+    assert config.database_path == tmp_path / "alfred.db"
+    assert config.workspace_dir == tmp_path / "workspace"
+    assert config.task_budget_usd == 0.5
