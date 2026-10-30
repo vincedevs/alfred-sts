@@ -120,6 +120,20 @@ Set `ALFRED_ECHO_CANCELLATION=off` in `.env` to pass the raw microphone on, with
 echo cancellation, noise suppression or gain control. Set it to `on` to turn them back on.
 Compare the two with headphones and with the laptop speakers.
 
+## Alfred's voice
+
+Alfred uses a custom GPT-Live voice made from a written description (OpenAI's
+prompt-to-voice). Its ID goes in `.env` as `ALFRED_VOICE`; leave it empty for the default voice.
+
+- ID: `voice_6ae46f5f3ddc8191836ada336e735089` (name `alfred-butler`, created Oct 30, 2026)
+- Description: "Older adult male, refined Received Pronunciation British accent, low-medium
+  pitch, warm and calm timbre, measured unhurried pace, impeccably polite with a hint of dry wit."
+
+To make a new one, `POST https://api.openai.com/v1/audio/voices` with `type: "prompt"`,
+`name`, `model: "auto"`, the description as `prompt`, and a `script_hint` of a few
+sentences (short hints are rejected). Describe qualities only: naming a real person or
+character is not allowed.
+
 ## Settings
 
 All settings live in `.env`; see `.env.example` for the full list. The ones you
