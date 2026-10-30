@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Alfred
+logs/
+.DS_Store
+tests/hey_alfred.wav
