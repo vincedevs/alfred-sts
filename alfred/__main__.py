@@ -1,9 +1,11 @@
 """Start Alfred: `uv run alfred`.
 
 The whole program is one loop:
-    listen for "Hey Alfred" -> wake sound -> talk with GPT-Live -> (idle) -> listen again
+    listen for "Hey Alfred" -> wake sound -> talk with GPT-Live -> (idle) -> sleep sound
+    -> listen again
 
 Background jobs (tasks.py) run alongside that loop; a soft chime plays when one finishes.
+When a job needs your answer, Alfred chimes and speaks up without waiting for the wake word.
 
 Every run writes a full DEBUG log to logs/alfred-<date>-<time>.log; the terminal
 shows ALFRED_LOG_LEVEL (INFO by default).
@@ -20,8 +22,10 @@ from importlib.metadata import version
 from loguru import logger
 
 from alfred.audio import AudioEngine, load_sound
-from alfred.config import PROJECT_ROOT, Config, ConfigError, load_config
+from alfred.audit import AuditLog
+from alfred.config import PROJECT_ROOT, SECRET_SETTINGS, Config, ConfigError, load_config
 from alfred.db import Database
+from alfred.questions import Questions
 from alfred.tasks import TaskRunner
 from alfred.voice import run_conversation
 from alfred.wakeword import WakeWordDetector
@@ -34,26 +38,35 @@ async def run(config: Config) -> None:
     detector = WakeWordDetector(config.wakeword_dir, config.wake_threshold)
     wake_sound = load_sound(PROJECT_ROOT / "sounds" / "listening_start.wav")
     done_sound = load_sound(PROJECT_ROOT / "sounds" / "task_done.wav")
+    sleep_sound = load_sound(PROJECT_ROOT / "sounds" / "session_end.wav")
     engine = AudioEngine(config.input_device, config.output_device, config.echo_cancellation)
     engine.start()
 
     config.workspace_dir.mkdir(parents=True, exist_ok=True)
     db = Database(config.database_path)
-    tasks = TaskRunner(db, config, on_finished=lambda _task: engine.play(done_sound))
+    questions = Questions(db)
+    audit = AuditLog(config.audit_path)
+    tasks = TaskRunner(
+        db, config, questions, audit, on_finished=lambda _task: engine.play(done_sound)
+    )
     if resumed := tasks.resume_unfinished():
         logger.info(f"Resumed {resumed} unfinished job(s)")
     handle_shutdown_signals(tasks)
     try:
         while True:
             logger.info('Waiting for "Hey Alfred"...')
-            await wait_for_wake_word(engine, detector)
-            logger.info(f"Wake word heard (score {detector.last_score:.2f})")
-            engine.play(wake_sound)  # tells you Alfred is listening
-            await run_conversation(engine, config, tasks, db)
+            if await wait_for_wake_word_or_question(engine, detector, questions):
+                logger.info(f"Wake word heard (score {detector.last_score:.2f})")
+                engine.play(wake_sound)  # tells you Alfred is listening
+            else:
+                logger.info("A job has a question for you: speaking up")
+                engine.play(done_sound)
+            await run_conversation(engine, config, tasks, db, questions)
 
             # Pipecat's runner swallows the cancellation Ctrl+C sends, so pass it on.
             if asyncio.current_task().cancelling():
                 raise asyncio.CancelledError
+            engine.play(sleep_sound)  # tells you to say "Hey Alfred" next time
             detector.reset()
             engine.clear_mic()  # don't let the end of the conversation wake us again
     finally:
@@ -82,6 +95,21 @@ def handle_shutdown_signals(tasks: TaskRunner) -> None:
         loop.add_signal_handler(sig, shut_down)
 
 
+async def wait_for_wake_word_or_question(
+    engine: AudioEngine, detector: WakeWordDetector, questions: Questions
+) -> bool:
+    """True when you said the wake word; False when a job asked you something that
+    Alfred hasn't said yet (the conversation clears new_question once it has)."""
+    wake = asyncio.create_task(wait_for_wake_word(engine, detector))
+    asked = asyncio.create_task(questions.new_question.wait())
+    try:
+        done, _ = await asyncio.wait({wake, asked}, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        wake.cancel()
+        asked.cancel()
+    return wake in done
+
+
 async def wait_for_wake_word(engine: AudioEngine, detector: WakeWordDetector) -> None:
     last_logged = 0.0
     while not detector.process(await engine.mic.get()):
@@ -104,7 +132,7 @@ def setup_logging(config: Config) -> None:
         f"Python {platform.python_version()} on {platform.platform()}; "
         + ", ".join(f"{name} {version(name)}" for name in packages)
     )
-    settings = {k: v for k, v in vars(config).items() if k != "openai_api_key"}
+    settings = {k: v for k, v in vars(config).items() if k not in SECRET_SETTINGS}
     logger.debug(f"Settings: {settings}")
 
     # Claude signs in with one of these (never logged): see .env.example.
@@ -117,6 +145,9 @@ def setup_logging(config: Config) -> None:
 
 
 def main() -> None:
+    # `uv run alfred` sets VIRTUAL_ENV to Alfred's own environment. Jobs' commands inherit
+    # it, which confuses uv in the workspace; Alfred itself doesn't need it once running.
+    os.environ.pop("VIRTUAL_ENV", None)
     try:
         config = load_config()
     except ConfigError as error:

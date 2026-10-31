@@ -1,4 +1,4 @@
-"""Alfred's one SQLite database file: a record of background jobs.
+"""Alfred's one SQLite database file: background jobs and the questions they ask you.
 
 A job is written here when it starts and updated as it runs, so after a restart
 Alfred knows which jobs to pick up again and which results it hasn't told you yet.
@@ -19,7 +19,16 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at  REAL    NOT NULL,
     finished_at REAL,
     told_user   INTEGER NOT NULL DEFAULT 0  -- 1 once Alfred has said the result
-)
+);
+CREATE TABLE IF NOT EXISTS questions (
+    id          INTEGER PRIMARY KEY,
+    task_id     INTEGER NOT NULL,           -- the job asking
+    kind        TEXT    NOT NULL,           -- approve (yes or no) | clarify (any answer)
+    text        TEXT    NOT NULL,           -- what Alfred asks you, word for word
+    status      TEXT    NOT NULL,           -- waiting | answered | expired
+    answer      TEXT,
+    created_at  REAL    NOT NULL
+);
 """
 
 
@@ -35,12 +44,23 @@ class Task:
     told_user: bool
 
 
+@dataclass
+class Question:
+    id: int
+    task_id: int
+    kind: str
+    text: str
+    status: str
+    answer: str | None
+    created_at: float
+
+
 class Database:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
-        self._conn.execute(SCHEMA)
+        self._conn.executescript(SCHEMA)
         self._conn.commit()
 
     def add_task(self, request: str) -> int:
@@ -86,6 +106,31 @@ class Database:
             "SELECT * FROM tasks WHERE status != 'running' AND told_user = 0 ORDER BY id"
         )
         return [_to_task(row) for row in rows]
+
+    def add_question(self, task_id: int, kind: str, text: str) -> Question:
+        cursor = self._conn.execute(
+            "INSERT INTO questions (task_id, kind, text, status, created_at) "
+            "VALUES (?, ?, ?, 'waiting', ?)",
+            (task_id, kind, text, time.time()),
+        )
+        self._conn.commit()
+        row = self._conn.execute("SELECT * FROM questions WHERE id = ?", (cursor.lastrowid,))
+        return Question(**dict(row.fetchone()))
+
+    def close_question(self, question_id: int, status: str, answer: str | None = None) -> None:
+        self._conn.execute(
+            "UPDATE questions SET status = ?, answer = ? WHERE id = ?",
+            (status, answer, question_id),
+        )
+        self._conn.commit()
+
+    def waiting_questions(self) -> list[Question]:
+        rows = self._conn.execute("SELECT * FROM questions WHERE status = 'waiting' ORDER BY id")
+        return [Question(**dict(row)) for row in rows]
+
+    def expire_waiting_questions(self) -> None:
+        self._conn.execute("UPDATE questions SET status = 'expired' WHERE status = 'waiting'")
+        self._conn.commit()
 
     def close(self) -> None:
         self._conn.close()

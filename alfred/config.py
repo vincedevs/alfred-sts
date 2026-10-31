@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+SECRET_SETTINGS = ("openai_api_key", "email_app_password")  # never logged
+
+
 class ConfigError(Exception):
     """A setting is missing or invalid. The message says how to fix it."""
 
@@ -30,6 +33,8 @@ class Config:
     data_dir: Path = Path.home() / ".alfred"  # database and Claude's workspace
     agent_model: str = "claude-haiku-5-5"  # Claude model for background jobs
     task_budget_usd: float = 0.25  # a job stops if it would cost more than this
+    email_address: str | None = None  # the Gmail account jobs send from
+    email_app_password: str | None = None  # a Gmail app password, never your real one
 
     @property
     def database_path(self) -> Path:
@@ -39,6 +44,10 @@ class Config:
     def workspace_dir(self) -> Path:
         """The only folder Claude may read and write files in."""
         return self.data_dir / "workspace"
+
+    @property
+    def audit_path(self) -> Path:
+        return self.data_dir / "audit.jsonl"
 
 
 def load_config(env: Mapping[str, str] | None = None) -> Config:
@@ -70,6 +79,8 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         task_budget_usd=_number(
             env, "ALFRED_TASK_BUDGET_USD", defaults.task_budget_usd, 0.01, 10.0
         ),
+        email_address=(env.get("ALFRED_EMAIL") or "").strip() or None,
+        email_app_password=(env.get("ALFRED_EMAIL_APP_PASSWORD") or "").replace(" ", "") or None,
     )
 
 

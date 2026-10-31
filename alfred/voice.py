@@ -8,11 +8,10 @@ question needs fresh facts, GPT-Live hands it to a cheaper text model (the
 (tools.py). OpenAI runs the hand-off itself ("Responses delegation"); Pipecat
 runs the job tools here when the router calls them.
 
-When a background job finishes mid-conversation, Alfred tells you straight away; if it
-finished between conversations, Alfred opens the next one by telling you.
+Alfred also tells you about background jobs without being asked (announcer.py).
 
-The session closes after `idle_seconds` with nobody speaking; GPT-Live bills
-for every open second, including silence.
+The session closes after about `idle_seconds` with nobody speaking, with a warning tone
+first; it stays open longer while a job is busy (idle.py).
 """
 
 import time
@@ -22,7 +21,6 @@ from pipecat.adapters.llm.schemas.tools_schema import AdapterType, ToolsSchema
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
-    EndFrame,
     ErrorFrame,
     FunctionCallInProgressFrame,
     FunctionCallResultFrame,
@@ -37,14 +35,16 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker, ProcessorUnusablePolicy
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
-from pipecat.services.openai.live import events as live_events
 from pipecat.services.openai.live.llm import OpenAILiveLLMService
 from pipecat.services.openai.responses.llm import OpenAIResponsesLLMService
 from pipecat.workers.runner import WorkerRunner
 
-from alfred.audio import SAMPLE_RATE, AudioEngine
-from alfred.config import Config, load_prompt
-from alfred.db import Database, Task
+from alfred.announcer import JobAnnouncer, opening_messages, recent_jobs_context
+from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
+from alfred.config import PROJECT_ROOT, Config, load_prompt
+from alfred.db import Database
+from alfred.idle import QuietTimer, check_every
+from alfred.questions import Questions
 from alfred.tasks import TaskRunner
 from alfred.tools import job_tools
 from alfred.transport import EngineTransport
@@ -65,45 +65,42 @@ WEB_SEARCH = {"type": "web_search"}  # hosted by OpenAI, runs on their side
 
 
 async def run_conversation(
-    engine: AudioEngine, config: Config, tasks: TaskRunner, db: Database
+    engine: AudioEngine, config: Config, tasks: TaskRunner, db: Database, questions: Questions
 ) -> None:
-    """Talk until nobody has spoken for `config.idle_seconds`, then return."""
+    """Talk until nobody has spoken for a while, then return."""
     transport = EngineTransport(engine)
-    llm = create_gpt_live(config)
+    llm = create_gpt_live(config, recent_jobs_context(db))
     # The router's tools: OpenAI's web search plus Alfred's job tools (run here).
     tools = ToolsSchema(
-        standard_tools=job_tools(tasks, db), custom_tools={AdapterType.OPENAI: [WEB_SEARCH]}
+        standard_tools=job_tools(tasks, db, questions),
+        custom_tools={AdapterType.OPENAI: [WEB_SEARCH]},
     )
-    context = LLMContext(messages=opening_messages(db), tools=tools)
+    opening, told = opening_messages(db, questions)
+    context = LLMContext(messages=opening, tools=tools)
     user_turns, alfred_turns = LLMContextAggregatorPair(context)
     pipeline = Pipeline([transport.input(), user_turns, llm, transport.output(), alfred_turns])
     worker = create_worker(pipeline, config)
-
-    session_open = False
+    announcer = JobAnnouncer(llm, db, tasks, questions)
 
     @llm.event_handler("on_session_started")
     async def on_session_started(_llm, _session):
-        nonlocal session_open
-        session_open = True
+        announcer.session_open = True
+        db.mark_told(told)  # only now: if the session failed to open, you'd not hear them
         logger.info("Listening (GPT-Live session open)")
         transport.mic_input.start_forwarding()
 
-    @worker.event_handler("on_idle_timeout")
-    async def on_idle(_worker):
-        logger.info(f"No speech for {config.idle_seconds:.0f} s, closing the session")
-        await worker.queue_frame(EndFrame())  # lets GPT-Live finish and close cleanly
+    warning_sound = load_sound(PROJECT_ROOT / "sounds" / "session_warning.wav")
+    timer = QuietTimer(worker, engine, warning_sound, config, tasks, questions, announcer)
+    timer.listen(worker, user_turns)
 
-    def announce_finished_job(task: Task) -> None:
-        """A job finished mid-conversation: GPT-Live tells you without being asked."""
-        if session_open and task.status != "stopped":
-            db.mark_told([task.id])
-            note = live_events.SessionCommentaryAppendEvent(
-                delegation_id=None, content=finished_job_note(task)
-            )
-            llm.create_task(llm.send_client_event(note), "announce_job")
+    def on_activity(said: str | None = None) -> None:
+        timer.activity()
+        if said:
+            announcer.user_said(str(said))
 
-    log_conversation(llm, user_turns, alfred_turns)
-    tasks.on_finished.append(announce_finished_job)
+    log_conversation(llm, user_turns, alfred_turns, on_activity)
+    questions.new_question.clear()  # waiting questions are in the opening message
+    announcer.start()
     await worker.queue_frame(LLMRunFrame())  # opens the GPT-Live session
     pipeline_runner = WorkerRunner(handle_sigint=False)  # Ctrl+C is handled in __main__.py
     await pipeline_runner.add_workers(worker)
@@ -111,44 +108,17 @@ async def run_conversation(
     try:
         await pipeline_runner.run()  # returns when the session has closed
     finally:
-        tasks.on_finished.remove(announce_finished_job)
+        announcer.stop()
+        timer.stop()
         minutes = (time.monotonic() - started) / 60
         logger.info(
             f"Session closed after {minutes:.1f} min (about ${minutes * 0.05:.2f} of GPT-Live)"
         )
 
 
-def finished_job_note(task: Task) -> str:
-    # Kept short: GPT-Live takes at most 500 tokens per message.
-    return (
-        f"Background job {task.id} ({task.request[:150]}) just finished: {task.status}. "
-        f"{(task.result or '')[:1200]} "
-        "Tell the user now, briefly, using only this; never add details."
-    )
-
-
-def opening_messages(db: Database) -> list[dict]:
-    """If jobs finished since the last conversation, Alfred opens by telling you.
-    A trailing developer message is how GPT-Live is asked to speak first."""
-    untold = db.untold_results()
-    db.mark_told([task.id for task in untold])
-    finished = [task for task in untold if task.status in ("done", "failed")]  # not "stopped"
-    if not finished:
-        return []
-    lines = "\n".join(f"- Job {t.id} ({t.request}): {t.status}. {t.result}" for t in finished)
-    logger.info(f"Opening with {len(finished)} finished job(s)")
-    return [
-        {
-            "role": "developer",
-            "content": "Before anything else, briefly tell the user about these finished "
-            "background jobs. Report only what is written here, never add details; "
-            f"if a job failed, say so plainly:\n{lines}",
-        }
-    ]
-
-
-def create_gpt_live(config: Config) -> OpenAILiveLLMService:
-    """GPT-Live, handing look-ups to the router model (OpenAI runs the hand-off)."""
+def create_gpt_live(config: Config, context: str = "") -> OpenAILiveLLMService:
+    """GPT-Live, handing look-ups to the router model (OpenAI runs the hand-off).
+    `context` is added to its instructions (recent jobs, so it isn't starting blank)."""
     logger.debug(
         f"Opening GPT-Live session: live model {config.live_model}, "
         f"router {config.router_model}, voice {config.voice or 'default'}"
@@ -157,7 +127,7 @@ def create_gpt_live(config: Config) -> OpenAILiveLLMService:
         api_key=config.openai_api_key,
         settings=OpenAILiveLLMService.Settings(
             model=config.live_model,
-            system_instruction=load_prompt("voice"),
+            system_instruction=load_prompt("voice") + context,
             voice=config.voice,
         ),
         delegation=OpenAILiveLLMService.ResponsesDelegation(
@@ -179,8 +149,8 @@ def create_worker(pipeline: Pipeline, config: Config) -> PipelineWorker:
             enable_metrics=True,
             enable_usage_metrics=True,
         ),
-        idle_timeout_secs=config.idle_seconds,
-        cancel_on_idle_timeout=False,  # run_conversation closes politely instead
+        idle_timeout_secs=check_every(config.idle_seconds),  # see idle.py
+        cancel_on_idle_timeout=False,  # idle.py warns, then closes politely
         # If GPT-Live's connection fails, end at once and go back to the wake word
         # instead of sitting silent until the idle timeout.
         processor_unusable_policy=ProcessorUnusablePolicy.END,
@@ -188,8 +158,9 @@ def create_worker(pipeline: Pipeline, config: Config) -> PipelineWorker:
     )
 
 
-def log_conversation(llm, user_turns, alfred_turns) -> None:
-    """Show what was said, and when the router looks something up."""
+def log_conversation(llm, user_turns, alfred_turns, on_activity) -> None:
+    """Show what was said, and when the router looks something up. on_activity is called
+    whenever someone speaks, with what you said."""
 
     @llm.event_handler("on_delegation_created")
     async def on_delegation_created(_llm, delegation):
@@ -198,8 +169,10 @@ def log_conversation(llm, user_turns, alfred_turns) -> None:
     @user_turns.event_handler("on_user_turn_message_added")
     async def on_user_turn(_aggregator, message):
         logger.info(f"You: {message.content}")
+        on_activity(message.content)
 
     @alfred_turns.event_handler("on_assistant_turn_stopped")
     async def on_alfred_turn(_aggregator, message):
         if message.content:
             logger.info(f"Alfred: {message.content}")
+        on_activity()

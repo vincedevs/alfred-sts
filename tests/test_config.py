@@ -1,6 +1,6 @@
 import pytest
 
-from alfred.config import PROJECT_ROOT, ConfigError, load_config
+from alfred.config import PROJECT_ROOT, SECRET_SETTINGS, ConfigError, load_config
 
 
 def test_defaults_need_only_the_api_key():
@@ -67,3 +67,17 @@ def test_data_folder_and_budget(tmp_path):
     assert config.database_path == tmp_path / "alfred.db"
     assert config.workspace_dir == tmp_path / "workspace"
     assert config.task_budget_usd == 0.5
+
+
+def test_email_settings():
+    config = load_config(
+        {
+            "OPENAI_API_KEY": "sk-test",
+            "ALFRED_EMAIL": " me@gmail.com ",
+            "ALFRED_EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop",  # as Google shows it
+        }
+    )
+    assert config.email_address == "me@gmail.com"
+    assert config.email_app_password == "abcdefghijklmnop"
+    assert "email_app_password" in SECRET_SETTINGS  # never written to the log
+    assert load_config({"OPENAI_API_KEY": "sk-test"}).email_address is None

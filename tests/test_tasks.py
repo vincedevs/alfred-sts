@@ -2,8 +2,10 @@
 
 import asyncio
 
+from alfred.audit import AuditLog
 from alfred.config import Config
 from alfred.db import Database
+from alfred.questions import Questions
 from alfred.tasks import TaskRunner
 from alfred.tools import job_tools
 
@@ -12,7 +14,14 @@ def make(tmp_path, agent, finished=None):
     db = Database(tmp_path / "alfred.db")
     config = Config(openai_api_key="sk-test", data_dir=tmp_path)
     on_finished = finished.append if finished is not None else None
-    return db, TaskRunner(db, config, on_finished=on_finished, run_agent=agent)
+    questions, audit = Questions(db), AuditLog(config.audit_path)
+    runner = TaskRunner(db, config, questions, audit, on_finished=on_finished, run_agent=agent)
+    runner.questions = questions  # for the tests below
+    return db, runner
+
+
+def tools_for(runner, db):
+    return job_tools(runner, db, runner.questions)
 
 
 async def quick_agent(task_id, request, session_id):
@@ -112,7 +121,7 @@ class FakeParams:
 def test_tools_start_check_and_stop(tmp_path):
     async def main():
         db, runner = make(tmp_path, quick_agent)
-        do_task, task_status, stop_task = job_tools(runner, db)
+        do_task, task_status, _, stop_task = tools_for(runner, db)
 
         params = FakeParams()
         await do_task(params, request="weather tomorrow")
@@ -151,7 +160,7 @@ def test_error_during_shutdown_is_not_a_failure(tmp_path):
 def test_stopped_job_is_not_reported_again(tmp_path):
     async def main():
         db, runner = make(tmp_path, slow_agent)
-        _, _, stop_task = job_tools(runner, db)
+        _, _, _, stop_task = tools_for(runner, db)
         task_id = runner.start("long research")
         await asyncio.sleep(0.05)
         await stop_task(FakeParams(), task_id=task_id)
@@ -169,5 +178,62 @@ def test_every_listener_hears_about_a_finished_job(tmp_path):
         await asyncio.sleep(0.05)
         assert [t.id for t in chimes] == [task_id]
         assert [t.id for t in announcements] == [task_id]
+
+    asyncio.run(main())
+
+
+def test_answer_job_tool_answers_the_question(tmp_path):
+    async def main():
+        async def asking_agent(task_id, request, session_id):
+            return await runner.questions.ask(task_id, "clarify", "Which year?")
+
+        db, runner = make(tmp_path, asking_agent)
+        _, task_status, answer_job, _ = tools_for(runner, db)
+        task_id = runner.start("chart my spending")
+        await asyncio.sleep(0.05)
+
+        params = FakeParams()
+        await task_status(params, task_id=task_id)
+        waiting = params.result["questions_for_user"]
+        assert waiting == [{"task_id": task_id, "question": "Which year?"}]
+        await answer_job(params, task_id=task_id, answer="2026")
+        await asyncio.sleep(0.05)
+        assert db.get_task(task_id).result == "2026"
+        await answer_job(params, task_id=task_id, answer="again")
+        assert "already passed on" in params.result["note"].lower()
+
+    asyncio.run(main())
+
+
+def test_audit_log_records_what_happened(tmp_path):
+    from types import SimpleNamespace
+
+    db, runner = make(tmp_path, quick_agent)
+    call = SimpleNamespace(id="t1", name="Bash", input={"command": "ls ~/Documents"})
+    blocked = SimpleNamespace(is_error=True, content="Permission denied by sandbox")
+    runner._record_result(1, call, blocked)
+    runner._record_result(1, call, SimpleNamespace(is_error=False, content="ok"))
+    log = (tmp_path / "audit.jsonl").read_text()
+    assert '"outcome": "failed"' in log and "Permission denied by sandbox" in log
+    assert '"outcome": "ran"' in log
+
+
+def test_refused_calls_get_no_second_audit_line(tmp_path):
+    from types import SimpleNamespace
+
+    _, runner = make(tmp_path, quick_agent)
+    runner._guard.refused.add("t2")
+    call = SimpleNamespace(id="t2", name="Read", input={"file_path": "/etc/passwd"})
+    runner._record_result(1, call, SimpleNamespace(is_error=True, content="refused"))
+    assert not (tmp_path / "audit.jsonl").exists()
+
+
+def test_answer_job_without_a_question_is_honest(tmp_path):
+    async def main():
+        db, runner = make(tmp_path, quick_agent)
+        _, _, answer_job, _ = tools_for(runner, db)
+        params = FakeParams()
+        await answer_job(params, task_id=42, answer="yes")
+        assert "nothing was passed on" in params.result["note"]
 
     asyncio.run(main())
