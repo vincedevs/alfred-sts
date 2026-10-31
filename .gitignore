@@ -11,6 +11,7 @@ __pycache__/
 # Alfred
 logs/
 tests/hey_alfred.wav
+fd-benchmark/
 
 # macOS
 .DS_Store
