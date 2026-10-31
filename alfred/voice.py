@@ -15,7 +15,6 @@ first; it stays open longer while a job is busy (idle.py).
 """
 
 import time
-from datetime import datetime
 
 from loguru import logger
 from pipecat.adapters.llm.schemas.tools_schema import AdapterType, ToolsSchema
@@ -40,7 +39,7 @@ from pipecat.services.openai.live.llm import OpenAILiveLLMService
 from pipecat.services.openai.responses.llm import OpenAIResponsesLLMService
 from pipecat.workers.runner import WorkerRunner
 
-from alfred.announcer import JobAnnouncer, opening_messages, recent_jobs_context
+from alfred.announcer import Announcer, opening_messages, recent_jobs_context
 from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.config import PROJECT_ROOT, Config, load_prompt
 from alfred.idle import QuietTimer, check_every
@@ -63,8 +62,9 @@ LOGGED_FRAMES = (
 WEB_SEARCH = {"type": "web_search"}  # hosted by OpenAI, runs on their side
 
 
-async def run_conversation(engine: AudioEngine, services: Services) -> list[str]:
-    """Talk until nobody has spoken for a while. Returns what was said, line by line."""
+async def run_conversation(engine: AudioEngine, services: Services) -> list[str] | None:
+    """Talk until nobody has spoken for a while. Returns what was said, line by line, or
+    None if the session never opened (no internet, or OpenAI unreachable)."""
     s, transcript = services, []
     transport = EngineTransport(engine)
     llm = create_gpt_live(s.config, *background(s))
@@ -73,7 +73,7 @@ async def run_conversation(engine: AudioEngine, services: Services) -> list[str]
     user_turns, alfred_turns = LLMContextAggregatorPair(context)
     pipeline = Pipeline([transport.input(), user_turns, llm, transport.output(), alfred_turns])
     worker = create_worker(pipeline, s.config)
-    announcer = JobAnnouncer(llm, s.db, s.tasks, s.questions, s.reminders)
+    announcer = Announcer(llm, s.db, s.tasks, s.questions, s.reminders)
 
     @llm.event_handler("on_session_started")
     async def on_session_started(_llm, _session):
@@ -84,8 +84,7 @@ async def run_conversation(engine: AudioEngine, services: Services) -> list[str]
         logger.info("Listening (GPT-Live session open)")
         transport.mic_input.start_forwarding()
 
-    warning_sound = load_sound(PROJECT_ROOT / "sounds" / "session_warning.wav")
-    timer = QuietTimer(worker, engine, warning_sound, s.config, s.tasks, s.questions, announcer)
+    timer = quiet_timer(worker, engine, s, announcer)
     timer.listen(worker, user_turns)
 
     def on_line(who: str, text: str) -> None:
@@ -111,13 +110,29 @@ async def run_conversation(engine: AudioEngine, services: Services) -> list[str]
         logger.info(
             f"Session closed after {minutes:.1f} min (about ${minutes * 0.05:.2f} of GPT-Live)"
         )
+    if not announcer.session_open:
+        logger.warning("Couldn't open a GPT-Live session: check the internet connection")
+        return None
     return transcript
+
+
+def quiet_timer(worker, engine: AudioEngine, services: Services, announcer) -> QuietTimer:
+    """Closes the session when it goes quiet; stays open while a job is busy (idle.py)."""
+    s = services
+    return QuietTimer(
+        worker,
+        engine,
+        load_sound(PROJECT_ROOT / "sounds" / "session_warning.wav"),
+        s.config.idle_seconds,
+        is_busy=lambda: s.tasks.busy or bool(s.questions.waiting()),
+        on_closing=announcer.closing_now,
+    )
 
 
 def background(services: Services) -> tuple[str, str]:
     """Added to the instructions (GPT-Live's, then the router's): the time, where you are,
     what Alfred knows about you, and recent jobs, so a conversation doesn't start blank."""
-    now = f"\n\n## Now\n{datetime.now():%A %d %B %Y, %I:%M %p} (the user's local time)."
+    now = f"\n\n## Now\n{services.config.now():%A %d %B %Y, %I:%M %p} (the user's local time)."
     about = services.config.home_text() + services.memory.profile_text()
     return now + about + recent_jobs_context(services.db), now + about
 

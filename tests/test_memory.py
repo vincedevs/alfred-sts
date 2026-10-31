@@ -76,7 +76,24 @@ def test_learning_failures_never_break_alfred(tmp_path):
             raise RuntimeError("offline")
 
         memory._ask_claude = broken
-        await memory.learn(["You: hello"])  # logs a warning, no exception
+        await memory.learn(["You: I'm vegetarian and my sister Ana lives in Cebu."])
+        # ...logs a warning, no exception
         assert memory.facts() == []
+
+    asyncio.run(main())
+
+
+def test_tiny_conversations_are_not_worth_a_claude_call(tmp_path):
+    async def main():
+        _, memory = make(tmp_path)
+        calls = []
+
+        async def counting(_transcript):
+            calls.append(1)
+            return {}
+
+        memory._ask_claude = counting
+        await memory.learn(["You: thanks, Alfred", "Alfred: My pleasure."])
+        assert calls == []
 
     asyncio.run(main())

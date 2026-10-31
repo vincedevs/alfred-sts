@@ -17,7 +17,7 @@ from pipecat.services.openai.live import events as live_events
 
 from alfred.db import Database, Question, Reminder, Task
 from alfred.questions import Questions
-from alfred.reminders import Reminders, spoken_time
+from alfred.reminders import Reminders
 from alfred.tasks import TaskRunner
 
 QUICK_ANSWER_WINDOW = 120  # seconds after Alfred asks in which a bare yes or no counts
@@ -43,7 +43,7 @@ def quick_answer(said: str) -> str | None:
     return None
 
 
-class JobAnnouncer:
+class Announcer:
     def __init__(
         self, llm, db: Database, tasks: TaskRunner, questions: Questions, reminders: Reminders
     ):
@@ -58,6 +58,10 @@ class JobAnnouncer:
         self._questions.on_asked.append(self._job_asked)
         self._reminders.on_due.append(self._reminder_due)
         self._expect_answer()  # to a question the opening message asks
+
+    def closing_now(self) -> None:
+        """The session is closing: anything new waits for the next one."""
+        self.closing = True
 
     def stop(self) -> None:
         self._tasks.on_finished.remove(self._job_finished)
@@ -174,7 +178,7 @@ def opening_messages(
     parts = ["Before anything else, tell the user briefly."]
     if due:
         parts.append(f"{_count(len(due), 'reminder')} the user set went off:")
-        parts += [f"- {_when_it_went_off(r.due_at)}: {r.text}" for r in due]
+        parts += [f"- {_when_it_went_off(r.due_at, reminders)}: {r.text}" for r in due]
     if finished:
         parts.append(f"{_count(len(finished), 'background job')} finished since you last spoke:")
         parts += [f"- {t.status}: {t.request[:150]}. Result: {t.result}" for t in finished]
@@ -189,10 +193,10 @@ def opening_messages(
     return [{"role": "developer", "content": "\n".join(parts)}], told, [r.id for r in due]
 
 
-def _when_it_went_off(due_at: float) -> str:
+def _when_it_went_off(due_at: float, reminders: Reminders) -> str:
     if time.time() - due_at < 120:
         return "Just now"
-    return f"While Alfred was off or asleep, at {spoken_time(due_at)}"
+    return f"While Alfred was off or asleep, at {reminders.spoken(due_at)}"
 
 
 def _count(n: int, thing: str) -> str:

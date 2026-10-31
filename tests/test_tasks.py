@@ -237,3 +237,35 @@ def test_answer_job_without_a_question_is_honest(tmp_path):
         assert "nothing was passed on" in params.result["note"]
 
     asyncio.run(main())
+
+
+def test_at_most_two_jobs_run_at_once(tmp_path):
+    async def main():
+        running, most = 0, 0
+        release = asyncio.Event()
+
+        async def counting_agent(task_id, request, session_id):
+            nonlocal running, most
+            running += 1
+            most = max(most, running)
+            await release.wait()
+            running -= 1
+            return "done"
+
+        db, runner = make(tmp_path, counting_agent)
+        ids = [runner.start(f"job {n}") for n in range(3)]
+        await asyncio.sleep(0.05)
+        assert most == 2 and runner.busy
+        release.set()
+        await asyncio.sleep(0.05)
+        assert [db.get_task(i).status for i in ids] == ["done"] * 3
+
+    asyncio.run(main())
+
+
+def test_no_sandbox_means_no_shell(tmp_path, monkeypatch):
+    import alfred.tasks as tasks_module
+
+    monkeypatch.setattr(tasks_module.shutil, "which", lambda _tool: None)
+    _, runner = make(tmp_path, quick_agent)
+    assert "Bash" not in runner._tools and "WebSearch" in runner._tools

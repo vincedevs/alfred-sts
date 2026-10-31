@@ -3,7 +3,7 @@
 import asyncio
 
 from alfred import announcer as announcer_module
-from alfred.announcer import JobAnnouncer, opening_messages, quick_answer, recent_jobs_context
+from alfred.announcer import Announcer, opening_messages, quick_answer, recent_jobs_context
 from alfred.audit import AuditLog
 from alfred.config import PROJECT_ROOT, Config
 from alfred.db import Database
@@ -50,7 +50,7 @@ def make(tmp_path, monkeypatch=None):
     questions = Questions(db)
     tasks = TaskRunner(db, config, questions, AuditLog(config.audit_path))
     llm = FakeLLM()
-    announcer = JobAnnouncer(llm, db, tasks, questions, Reminders(db, config, tasks))
+    announcer = Announcer(llm, db, tasks, questions, Reminders(db, config, tasks))
     announcer.start()
     announcer.session_open = True
     return db, questions, announcer, llm

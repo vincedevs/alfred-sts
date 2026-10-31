@@ -35,17 +35,6 @@ def next_time(due: datetime, repeat: str) -> datetime:
     return due
 
 
-def spoken_time(when: float) -> str:
-    """'3:05 PM today', '7:00 AM tomorrow' or '9:00 AM on Monday 2 November'."""
-    moment, today = datetime.fromtimestamp(when), datetime.now().date()
-    clock = moment.strftime("%I:%M %p").lstrip("0")
-    if moment.date() == today:
-        return f"{clock} today"
-    if moment.date() == today + timedelta(days=1):
-        return f"{clock} tomorrow"
-    return f"{clock} on {moment:%A} {moment.day} {moment:%B}"
-
-
 class Reminders:
     def __init__(self, db: Database, config: Config, tasks: TaskRunner, now=time.time):
         self._db, self._config, self._tasks, self._now = db, config, tasks, now
@@ -58,8 +47,36 @@ class Reminders:
         if repeat not in REPEATS:
             raise ValueError(f"repeat must be one of {', '.join(REPEATS)}")
         reminder = self._db.add_reminder(text, due_at, repeat, run_job)
-        logger.info(f"Reminder {reminder.id} set for {spoken_time(due_at)}: {text} ({repeat})")
+        logger.info(f"Reminder {reminder.id} set for {self.spoken(due_at)}: {text} ({repeat})")
         return reminder
+
+    def due_time(self, in_minutes: float = 0, at: str = "") -> float:
+        """When a new reminder is due: in so many minutes, or at "YYYY-MM-DD HH:MM" local."""
+        now = self._now()
+        if at:
+            try:
+                local = datetime.strptime(at.strip(), "%Y-%m-%d %H:%M")
+            except ValueError:
+                raise ValueError('at must look like "2026-10-31 15:30"') from None
+            due = local.replace(tzinfo=self._config.tz).timestamp()
+        elif in_minutes > 0:
+            due = now + in_minutes * 60
+        else:
+            raise ValueError("Give either in_minutes or at")
+        if due < now - 60:
+            raise ValueError("That time has already passed")
+        return due
+
+    def spoken(self, when: float) -> str:
+        """'3:05 PM today', '7:00 AM tomorrow' or '9:00 AM on Monday 2 November'."""
+        moment = self._config.local(when)
+        today = self._config.local(self._now()).date()
+        clock = moment.strftime("%I:%M %p").lstrip("0")
+        if moment.date() == today:
+            return f"{clock} today"
+        if moment.date() == today + timedelta(days=1):
+            return f"{clock} tomorrow"
+        return f"{clock} on {moment:%A} {moment.day} {moment:%B}"
 
     def upcoming(self) -> list[Reminder]:
         return self._db.reminders_with_status("waiting")
@@ -129,7 +146,7 @@ class Reminders:
 
     def _move_on(self, reminder: Reminder, now: float) -> None:
         """A repeating reminder: on to its next time in the future (missed ones skipped)."""
-        due = datetime.fromtimestamp(reminder.due_at)
+        due = self._config.local(reminder.due_at)  # in your time zone, so "daily" keeps the hour
         while due.timestamp() <= now:
             due = next_time(due, reminder.repeat)
         self._db.update_reminder(reminder.id, "waiting", due.timestamp())

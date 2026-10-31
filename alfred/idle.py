@@ -27,10 +27,13 @@ def check_every(idle_seconds: float) -> float:
 
 
 class QuietTimer:
-    def __init__(self, worker, engine, warning_sound, config, tasks, questions, announcer):
+    """is_busy(): is a job running or waiting for an answer? on_closing(): called just
+    before the session is closed."""
+
+    def __init__(self, worker, engine, warning_sound, idle_seconds: float, is_busy, on_closing):
         self._worker, self._engine, self._warning_sound = worker, engine, warning_sound
-        self._interval = check_every(config.idle_seconds)
-        self._tasks, self._questions, self._announcer = tasks, questions, announcer
+        self._interval = check_every(idle_seconds)
+        self._is_busy, self._on_closing = is_busy, on_closing
         self._quiet_since: float | None = None  # when the current quiet stretch began
         self._closing_soon: asyncio.Task | None = None  # set once the warning has played
         self._closing = False  # too late: the session is closing
@@ -55,7 +58,7 @@ class QuietTimer:
         now = time.monotonic()
         self._quiet_since = self._quiet_since or now - self._interval
         quiet = now - self._quiet_since
-        if (self._tasks.busy or self._questions.waiting()) and quiet < KEEP_OPEN_SECONDS:
+        if self._is_busy() and quiet < KEEP_OPEN_SECONDS:
             logger.info(f"Quiet for {quiet:.0f} s, but a job is busy: staying open")
             return
         logger.info(f"Quiet for {quiet:.0f} s: warning tone, closing in {WARNING_SECONDS} s")
@@ -92,7 +95,7 @@ class QuietTimer:
                 return
         logger.info("No speech after the warning, closing the session")
         self._closing = True
-        self._announcer.closing = True
+        self._on_closing()
         await self._worker.queue_frame(EndFrame())  # lets GPT-Live finish and close cleanly
 
     def _you_are_speaking(self) -> bool:

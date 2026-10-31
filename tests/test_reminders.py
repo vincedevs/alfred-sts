@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from alfred.audit import AuditLog
 from alfred.config import Config
@@ -113,3 +114,23 @@ def test_at_night_a_briefing_waits_but_your_reminders_still_go_off(tmp_path, mon
         assert reminders.wake.is_set()  # you chose the time
 
     asyncio.run(main())
+
+
+def test_times_are_read_in_alfreds_time_zone(tmp_path):
+    _, reminders, clock = make(tmp_path)
+    clock.now = datetime(2026, 10, 31, 12, 0, tzinfo=ZoneInfo("Asia/Manila")).timestamp()
+    due = reminders.due_time(at="2026-10-31 17:00")
+    assert due - clock.now == 5 * 3600  # 5 pm Manila, wherever the computer thinks it is
+    assert reminders.spoken(due) == "5:00 PM today"
+    assert reminders.due_time(in_minutes=2) == clock.now + 120
+
+
+def test_bad_times_are_refused(tmp_path):
+    _, reminders, clock = make(tmp_path)
+    clock.now = datetime(2026, 10, 31, 12, 0, tzinfo=ZoneInfo("Asia/Manila")).timestamp()
+    for kwargs in ({}, {"at": "5pm"}, {"at": "2026-10-30 09:00"}):
+        try:
+            reminders.due_time(**kwargs)
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {kwargs}")

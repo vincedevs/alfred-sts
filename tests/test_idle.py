@@ -31,8 +31,14 @@ def make(monkeypatch, **kwargs):
     monkeypatch.setattr(idle, "TONE_SECONDS", 0.0)
     monkeypatch.setattr(idle, "LISTEN_EVERY", 0.005)
     fake = Fake(**kwargs)
-    config = SimpleNamespace(idle_seconds=25.0)
-    return fake, QuietTimer(fake, fake, "warning", config, fake, fake, fake)
+
+    def on_closing():
+        fake.closing = True
+
+    def is_busy():
+        return fake.busy or bool(fake.waiting())
+
+    return fake, QuietTimer(fake, fake, "warning", 25.0, is_busy, on_closing)
 
 
 def test_warns_then_closes(monkeypatch):

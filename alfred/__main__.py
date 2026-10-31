@@ -9,33 +9,25 @@ Alfred also chimes and speaks up without the wake word when a reminder goes off,
 needs your answer (not during quiet hours, except reminders). After each conversation,
 memory.py notes anything worth remembering.
 
-Every run writes a full DEBUG log to logs/alfred-<date>-<time>.log; the terminal
-shows ALFRED_LOG_LEVEL (INFO by default).
+Logging is set up in logs.py; everything long-lived is built in services.py.
 """
 
 import asyncio
+import fcntl
 import os
-import platform
 import signal
 import sys
-from datetime import datetime
-from importlib.metadata import version
 
 from loguru import logger
 
 from alfred.audio import AudioEngine, load_sound
-from alfred.audit import AuditLog
-from alfred.config import PROJECT_ROOT, SECRET_SETTINGS, Config, ConfigError, load_config
-from alfred.db import Database
-from alfred.memory import Memory
-from alfred.questions import Questions
-from alfred.reminders import Reminders
+from alfred.config import PROJECT_ROOT, Config, ConfigError, load_config
+from alfred.logs import setup_logging
 from alfred.services import Services
 from alfred.tasks import TaskRunner
 from alfred.voice import run_conversation
 from alfred.wakeword import WakeWordDetector
 
-LOG_DIR = PROJECT_ROOT / "logs"
 NEAR_MISS_SCORE = 0.2  # wake-word scores above this are logged, to help tune the threshold
 
 
@@ -44,6 +36,7 @@ async def run(config: Config) -> None:
     wake_sound = load_sound(PROJECT_ROOT / "sounds" / "listening_start.wav")
     done_sound = load_sound(PROJECT_ROOT / "sounds" / "task_done.wav")
     sleep_sound = load_sound(PROJECT_ROOT / "sounds" / "session_end.wav")
+    offline_sound = load_sound(PROJECT_ROOT / "sounds" / "connection_error.wav")
     engine = AudioEngine(config.input_device, config.output_device, config.echo_cancellation)
     engine.start()
 
@@ -51,7 +44,7 @@ async def run(config: Config) -> None:
         if not config.is_quiet():
             engine.play(done_sound)
 
-    services = start_services(config, chime)
+    services = Services.start(config, on_job_finished=chime)
     handle_shutdown_signals(services.tasks)
     background = {asyncio.create_task(services.reminders.run(), name="reminders")}
     try:
@@ -69,10 +62,13 @@ async def run(config: Config) -> None:
             # Pipecat's runner swallows the cancellation Ctrl+C sends, so pass it on.
             if asyncio.current_task().cancelling():
                 raise asyncio.CancelledError
-            engine.play(sleep_sound)  # tells you to say "Hey Alfred" next time
-            learning = asyncio.create_task(services.memory.learn(transcript), name="learn")
-            background.add(learning)
-            learning.add_done_callback(background.discard)
+            if transcript is None:
+                engine.play(offline_sound)  # two low beeps: couldn't reach OpenAI
+            else:
+                engine.play(sleep_sound)  # tells you to say "Hey Alfred" next time
+                learning = asyncio.create_task(services.memory.learn(transcript), name="learn")
+                background.add(learning)
+                learning.add_done_callback(background.discard)
             detector.reset()
             engine.clear_mic()  # don't let the end of the conversation wake us again
     finally:
@@ -81,27 +77,6 @@ async def run(config: Config) -> None:
         await services.tasks.close()  # unfinished jobs stay recorded and resume next start
         services.db.close()
         engine.close()
-
-
-def start_services(config: Config, on_job_finished) -> Services:
-    config.workspace_dir.mkdir(parents=True, exist_ok=True)
-    db = Database(config.database_path)
-    questions = Questions(db)
-    memory = Memory(db, config)
-    tasks = TaskRunner(
-        db,
-        config,
-        questions,
-        AuditLog(config.audit_path),
-        on_finished=on_job_finished,
-        # jobs know where you are and what Alfred knows about you
-        about_user=lambda: config.home_text() + memory.profile_text(),
-    )
-    if resumed := tasks.resume_unfinished():
-        logger.info(f"Resumed {resumed} unfinished job(s)")
-    reminders = Reminders(db, config, tasks)
-    reminders.catch_up()
-    return Services(config, db, tasks, questions, memory, reminders)
 
 
 def handle_shutdown_signals(tasks: TaskRunner) -> None:
@@ -161,29 +136,16 @@ async def wait_for_wake_word(engine: AudioEngine, detector: WakeWordDetector) ->
             last_logged = score
 
 
-def setup_logging(config: Config) -> None:
-    LOG_DIR.mkdir(exist_ok=True)
-    log_file = LOG_DIR / f"alfred-{datetime.now():%Y%m%d-%H%M%S}.log"
-    logger.remove()
-    logger.add(sys.stderr, level=config.log_level)
-    logger.add(log_file, level="DEBUG", backtrace=True, diagnose=False)
-    logger.info(f"Logging everything to {log_file.relative_to(PROJECT_ROOT)}")
-
-    packages = ("pipecat-ai", "claude-agent-sdk", "livekit", "sounddevice", "onnxruntime")
-    logger.debug(
-        f"Python {platform.python_version()} on {platform.platform()}; "
-        + ", ".join(f"{name} {version(name)}" for name in packages)
-    )
-    settings = {k: v for k, v in vars(config).items() if k not in SECRET_SETTINGS}
-    logger.debug(f"Settings: {settings}")
-
-    # Claude signs in with one of these (never logged): see .env.example.
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        logger.info("Claude jobs: using ANTHROPIC_API_KEY (billed per use)")
-    elif os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        logger.info("Claude jobs: using your Claude plan (CLAUDE_CODE_OAUTH_TOKEN)")
-    else:
-        logger.warning("No Claude sign-in in .env: background jobs will fail")
+def only_one_alfred(config: Config):
+    """Two Alfreds would fight over the microphone and the database (say, the Pi's service
+    and a manual `uv run alfred`). The lock is released when the process ends."""
+    config.data_dir.mkdir(parents=True, exist_ok=True)
+    lock = open(config.data_dir / "alfred.lock", "w")  # held open until Alfred exits
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit("Alfred is already running (stop the other one first).")
+    return lock
 
 
 def main() -> None:
@@ -195,6 +157,7 @@ def main() -> None:
     except ConfigError as error:
         sys.exit(f"Config error: {error}")
 
+    _lock = only_one_alfred(config)  # kept for as long as Alfred runs
     setup_logging(config)
     try:
         asyncio.run(run(config))

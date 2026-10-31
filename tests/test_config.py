@@ -112,3 +112,13 @@ def test_home_settings_reach_the_prompts():
     assert "Austin, Texas" in us.home_text() and "°F" in us.home_text()
     with pytest.raises(ConfigError):
         load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_UNITS": "furlongs"})
+
+
+def test_time_zone_is_ours_not_the_computers():
+    config = load_config({"OPENAI_API_KEY": "sk-test"})
+    assert config.timezone == "Asia/Manila"
+    assert config.now().utcoffset().total_seconds() == 8 * 3600
+    assert config.local(0).hour == 8  # midnight UTC on 1 Jan 1970 was 8 am in Manila
+    assert "UTC+08:00" in config.home_text()
+    with pytest.raises(ConfigError):
+        load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_TIMEZONE": "Mars/Olympus"})

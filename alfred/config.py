@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dotenv import load_dotenv
 
@@ -43,6 +44,9 @@ class Config:
     home: str = "Manila, Philippines"
     units: str = "metric"  # metric | imperial
     currency: str = "Philippine pesos (PHP, ₱)"
+    # Every time Alfred works with (reminders, quiet hours, "now") is in this time zone,
+    # whatever the computer is set to: a new Raspberry Pi starts on UTC.
+    timezone: str = "Asia/Manila"
 
     @property
     def database_path(self) -> Path:
@@ -62,9 +66,21 @@ class Config:
         """What Alfred knows about you: one fact per line, yours to read and edit."""
         return self.data_dir / "profile.md"
 
+    @property
+    def tz(self) -> ZoneInfo:
+        return ZoneInfo(self.timezone)
+
+    def now(self) -> datetime:
+        """The current time where you are."""
+        return datetime.now(self.tz)
+
+    def local(self, timestamp: float) -> datetime:
+        """A stored Unix time, as your local time."""
+        return datetime.fromtimestamp(timestamp, self.tz)
+
     def home_text(self) -> str:
         """For every prompt (Alfred's voice, the router, jobs): where the user is."""
-        offset = datetime.now().astimezone().strftime("%z")
+        offset = self.now().strftime("%z")
         examples = "°C, km, kg" if self.units == "metric" else "°F, miles, pounds"
         return (
             f"\n\n## Where the user is\nThe user lives in {self.home} (local time is "
@@ -77,7 +93,7 @@ class Config:
         if not self.quiet_hours:
             return False
         start, end = self.quiet_hours
-        hour = (now or datetime.now()).hour
+        hour = (now or self.now()).hour
         return start <= hour or hour < end if start > end else start <= hour < end
 
 
@@ -116,6 +132,7 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         home=env.get("ALFRED_HOME") or defaults.home,
         units=_choice(env, "ALFRED_UNITS", defaults.units, ("metric", "imperial")),
         currency=env.get("ALFRED_CURRENCY") or defaults.currency,
+        timezone=_timezone(env.get("ALFRED_TIMEZONE") or defaults.timezone),
     )
 
 
@@ -146,6 +163,15 @@ def _on_off(env: Mapping[str, str], name: str, default: bool) -> bool:
     if raw in ("off", "false", "no", "0"):
         return False
     raise ConfigError(f"{name} must be on or off, got {raw!r}.")
+
+
+def _timezone(name: str) -> str:
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        message = f"ALFRED_TIMEZONE must be a time zone like Asia/Manila, got {name!r}."
+        raise ConfigError(message) from None
+    return name
 
 
 def _choice(env: Mapping[str, str], name: str, default: str, allowed: tuple[str, ...]) -> str:

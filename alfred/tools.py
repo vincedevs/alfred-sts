@@ -5,15 +5,12 @@ Each tool is a plain async function. Pipecat reads its name, docstring and argum
 to describe it to the model, and runs it here when the model calls it.
 """
 
-import time
-from datetime import datetime
-
 from pipecat.services.llm_service import FunctionCallParams
 
 from alfred.db import Database, Reminder, Task
 from alfred.memory import Memory
 from alfred.questions import Questions
-from alfred.reminders import Reminders, spoken_time
+from alfred.reminders import Reminders
 from alfred.tasks import TaskRunner
 
 QUICK_ANSWER_SECONDS = 12  # a job done within this is answered straight away
@@ -146,16 +143,16 @@ def reminder_tools(reminders: Reminders) -> list:
             run_as_job: True to run `text` as a background job and say its result.
         """
         try:
-            due = _due_time(in_minutes, at)
+            due = reminders.due_time(in_minutes, at)
             reminder = reminders.add(text, due, repeat, run_as_job)
         except ValueError as error:
             await params.result_callback({"error": str(error)})
             return
-        await params.result_callback(_describe_reminder(reminder))
+        await params.result_callback(_describe_reminder(reminder, reminders))
 
     async def list_reminders(params: FunctionCallParams):
         """List the reminders still to come."""
-        upcoming = [_describe_reminder(reminder) for reminder in reminders.upcoming()]
+        upcoming = [_describe_reminder(r, reminders) for r in reminders.upcoming()]
         await params.result_callback({"reminders": upcoming})
 
     async def cancel_reminder(params: FunctionCallParams, reminder_id: int):
@@ -169,26 +166,11 @@ def reminder_tools(reminders: Reminders) -> list:
     return [set_reminder, list_reminders, cancel_reminder]
 
 
-def _due_time(in_minutes: float, at: str) -> float:
-    if at:
-        try:
-            due = datetime.strptime(at.strip(), "%Y-%m-%d %H:%M").timestamp()
-        except ValueError:
-            raise ValueError('at must look like "2026-10-31 15:30"') from None
-    elif in_minutes > 0:
-        due = time.time() + in_minutes * 60
-    else:
-        raise ValueError("Give either in_minutes or at")
-    if due < time.time() - 60:
-        raise ValueError("That time has already passed")
-    return due
-
-
-def _describe_reminder(reminder: Reminder) -> dict:
+def _describe_reminder(reminder: Reminder, reminders: Reminders) -> dict:
     return {
         "reminder_id": reminder.id,
         "text": reminder.text,
-        "when": spoken_time(reminder.due_at),
+        "when": reminders.spoken(reminder.due_at),
         "repeat": reminder.repeat,
         "runs_a_job": reminder.run_job,
     }

@@ -12,7 +12,6 @@ one-or-two-line summary. Throwaway chatter is left out.
 
 import json
 import re
-from datetime import datetime
 
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 from loguru import logger
@@ -20,6 +19,7 @@ from loguru import logger
 from alfred.config import Config, load_prompt
 from alfred.db import Database
 
+TOO_SHORT_TO_LEARN = 8  # words you said: "thanks, Alfred" isn't worth a Claude call
 COMMON_WORDS = set(
     "the a an and or of to in on at for is are was were it my me i you your what did do "
     "about with that this from have has had be been find found tell".split()
@@ -88,13 +88,14 @@ class Memory:
 
     def search(self, about: str, limit: int = 5) -> list[str]:
         found = self._db.search_history(words_in(about), limit)
-        return [f"({datetime.fromtimestamp(when):%a %d %b %Y}) {text}" for text, when in found]
+        return [f"({self._config.local(when):%a %d %b %Y}) {text}" for text, when in found]
 
     # Learning after a conversation
 
     async def learn(self, transcript: list[str]) -> None:
         """Ask Claude Haiku what's worth keeping from a conversation. Never raises."""
-        if not any(line.startswith("You:") for line in transcript):
+        yours = [line for line in transcript if line.startswith("You:")]
+        if sum(len(line.split()) - 1 for line in yours) < TOO_SHORT_TO_LEARN:
             return
         try:
             notes = await self._ask_claude("\n".join(transcript)[-12000:])

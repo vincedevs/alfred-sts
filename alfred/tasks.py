@@ -3,17 +3,22 @@
 Each job runs Claude through the Claude Agent SDK as its own asyncio task. Claude
 works on its own: it searches, reads pages and writes notes until it has an answer.
 Every job is recorded in the database, so after a restart unfinished jobs carry on
-from where they were (the SDK can resume a Claude session by its ID).
+from where they were (the SDK can resume a Claude session by its ID). At most
+MAX_JOBS_AT_ONCE run together (each is a Claude Code process of a few hundred MB); the
+rest wait their turn.
 
 What a job may do is decided by policy.py before every tool call. Shell commands also
 run inside the operating system's sandbox (Seatbelt on macOS, bubblewrap on Linux):
 they can only write in the workspace, can't read Alfred's own files or your secrets, and
-can only reach package sites. Every decision goes to the audit log.
+can only reach package sites. If the sandbox isn't installed, jobs get no shell at all.
+Every decision goes to the audit log.
 """
 
 import asyncio
 import json
 import os
+import shutil
+import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -40,6 +45,7 @@ from alfred.questions import QUESTION_TIMEOUT, Questions
 
 AGENT_TOOLS = ["WebSearch", "WebFetch", "Read", "Write", "Edit", "Glob", "Grep", "Bash"]
 MAX_TURNS = 40  # a safety stop for a job that goes round in circles
+MAX_JOBS_AT_ONCE = 2  # enough for a Raspberry Pi's memory
 # The only sites shell commands can reach (for web pages, jobs use WebFetch instead).
 PACKAGE_SITES = ["pypi.org", "files.pythonhosted.org", "registry.npmjs.org"]
 SANDBOX = {
@@ -78,6 +84,8 @@ class TaskRunner:
         self.on_finished: list[Callable[[Task], None]] = [on_finished] if on_finished else []
         self._run_agent = run_agent or self._run_claude
         self._about_user = about_user  # what Alfred knows about you, for jobs' instructions
+        self._slots = asyncio.Semaphore(MAX_JOBS_AT_ONCE)
+        self._tools = AGENT_TOOLS if sandbox_installed() else AGENT_TOOLS[:-1]  # no Bash
         self._jobs: dict[int, asyncio.Task] = {}
         self._waiting: set[int] = set()  # jobs someone is waiting on (see wait)
         self._closing = False
@@ -142,7 +150,11 @@ class TaskRunner:
 
     async def _run(self, task_id: int, request: str, session_id: str | None) -> None:
         try:
-            status, result = "done", await self._run_agent(task_id, request, session_id)
+            if self._slots.locked():
+                logger.info(f"Task {task_id} waits for one of the other jobs to finish")
+            async with self._slots:
+                result = await self._run_agent(task_id, request, session_id)
+            status = "done"
         except asyncio.CancelledError:
             if self._closing:
                 raise  # not stopped by you: leave it to resume
@@ -216,7 +228,7 @@ class TaskRunner:
         return ClaudeAgentOptions(
             model=config.agent_model,
             system_prompt=load_prompt("agent") + self._about_user(),
-            tools=AGENT_TOOLS,  # the built-in tools Claude can see, plus Alfred's own:
+            tools=self._tools,  # the built-in tools Claude can see, plus Alfred's own:
             mcp_servers={"alfred": agent_tools_server(task_id, config, self._questions)},
             hooks={"PreToolUse": [guard]},
             can_use_tool=refuse_unchecked,
@@ -229,6 +241,16 @@ class TaskRunner:
             setting_sources=[],  # ignore your personal Claude Code settings
             resume=session_id,
         )
+
+
+def sandbox_installed() -> bool:
+    """Shell commands need the operating system's sandbox: Seatbelt (built into macOS), or
+    bubblewrap and socat on Linux (`sudo apt install bubblewrap socat`)."""
+    needed = ["sandbox-exec"] if sys.platform == "darwin" else ["bwrap", "socat"]
+    missing = [tool for tool in needed if not shutil.which(tool)]
+    if missing:
+        logger.warning(f"Sandbox tools missing ({', '.join(missing)}): jobs get no shell")
+    return not missing
 
 
 async def refuse_unchecked(tool: str, _tool_input: dict, _context) -> PermissionResultDeny:

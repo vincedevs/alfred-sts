@@ -22,6 +22,7 @@ chime, then just talk. You can interrupt him at any time.
 | Soft two-note chime | A background job finished, a job needs your answer, or a reminder is due |
 | Single soft tick | Alfred will stop listening in 5 seconds unless you speak |
 | Low two-note sound | Alfred has stopped listening: say "Hey Alfred" next time |
+| Two short low beeps | Alfred couldn't connect: check the internet connection |
 
 Alfred stops listening after about 25 seconds of quiet. While a job is still working or
 waiting for your answer, he stays with you for up to 2 minutes.
@@ -104,6 +105,7 @@ most likely to change:
 | `ALFRED_IDLE_SECONDS` | How long Alfred waits in silence before he stops listening |
 | `ALFRED_QUIET_HOURS` | When Alfred stays quiet unless a reminder is due, e.g. `22-7`, or `off` |
 | `ALFRED_HOME`, `ALFRED_UNITS`, `ALFRED_CURRENCY` | Where you are: Alfred assumes this place, `metric` or `imperial` units, and this currency unless you say otherwise |
+| `ALFRED_TIMEZONE` | Your time zone (`Asia/Manila`), used for reminders and quiet hours whatever the computer is set to |
 | `ALFRED_INPUT_DEVICE`, `ALFRED_OUTPUT_DEVICE` | Which microphone and speaker to use (list them with `uv run python -m sounddevice`) |
 | `ALFRED_TASK_BUDGET_USD` | The most one background job may cost |
 
@@ -125,8 +127,13 @@ said; delete them whenever you like.
 
 ## Troubleshooting
 
-Every run writes a detailed log to `logs/alfred-<date>-<time>.log`. If something goes
-wrong, that file shows what happened.
+Every run writes a detailed log to `logs/alfred-<date>-<time>.log`; logs older than two
+weeks are deleted automatically. If something goes wrong, the newest log shows what
+happened.
+
+- **Two short low beeps after "Hey Alfred":** Alfred couldn't reach OpenAI. Check the
+  internet connection.
+- **"Alfred is already running":** another copy is open; stop it first.
 
 - **Alfred hears himself or interrupts himself:** use headphones, or lower the speaker volume.
 - **Alfred wakes by mistake, or doesn't hear "Hey Alfred":** adjust `ALFRED_WAKE_THRESHOLD`.
