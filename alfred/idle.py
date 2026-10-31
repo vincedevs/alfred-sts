@@ -4,6 +4,9 @@ After about `idle_seconds` of quiet a soft warning tone plays; if nobody speaks 
 WARNING_SECONDS, the session closes (and __main__.py plays the sleep sound). While a job
 is running or waiting for your answer, Alfred stays open longer, up to KEEP_OPEN_SECONDS
 of quiet, so you hear the result or the question.
+
+During the warning, our own microphone check (audio_log.py) also counts: it hears you a
+moment before GPT-Live reports you speaking, which matters right at the deadline.
 """
 
 import asyncio
@@ -14,6 +17,8 @@ from pipecat.frames.frames import EndFrame
 
 WARNING_SECONDS = 5  # the warning tone plays this long before closing
 KEEP_OPEN_SECONDS = 120  # most quiet time while a job is busy
+TONE_SECONDS = 1.0  # the tone and its echo in the room aren't you speaking
+LISTEN_EVERY = 0.05
 
 
 def check_every(idle_seconds: float) -> float:
@@ -28,6 +33,8 @@ class QuietTimer:
         self._tasks, self._questions, self._announcer = tasks, questions, announcer
         self._quiet_since: float | None = None  # when the current quiet stretch began
         self._closing_soon: asyncio.Task | None = None  # set once the warning has played
+        self._closing = False  # too late: the session is closing
+        self._mic_saved_us = False  # the microphone check kept it open once already
 
     def listen(self, worker, user_turns) -> None:
         """Hook into Pipecat: its quiet reports, and the moment you start speaking (not
@@ -58,7 +65,10 @@ class QuietTimer:
     def activity(self) -> None:
         """Someone spoke: start counting quiet again, and don't close."""
         self._quiet_since = None
-        if self._closing_soon:
+        self._mic_saved_us = False
+        if self._closing:
+            logger.info("Speech came just after the session started closing")
+        elif self._closing_soon:
             logger.info("Speech after the warning: staying open")
             self.stop()
 
@@ -68,7 +78,23 @@ class QuietTimer:
             self._closing_soon = None
 
     async def _close_after_warning(self) -> None:
-        await asyncio.sleep(WARNING_SECONDS)
+        started = time.monotonic()
+        mic_went_quiet = False  # only a voice that starts after the tone has faded counts
+        while time.monotonic() - started < WARNING_SECONDS:
+            await asyncio.sleep(LISTEN_EVERY)
+            if time.monotonic() - started < TONE_SECONDS:
+                continue
+            mic_went_quiet = mic_went_quiet or not self._engine.activity.mic.on
+            if mic_went_quiet and self._you_are_speaking():
+                logger.info("Voice on the microphone after the warning: staying open")
+                self._mic_saved_us = True  # once per quiet stretch, so a TV can't keep it open
+                self._closing_soon = None
+                return
         logger.info("No speech after the warning, closing the session")
+        self._closing = True
         self._announcer.closing = True
         await self._worker.queue_frame(EndFrame())  # lets GPT-Live finish and close cleanly
+
+    def _you_are_speaking(self) -> bool:
+        sound = self._engine.activity
+        return not self._mic_saved_us and sound.mic.on and not sound.speaker.on

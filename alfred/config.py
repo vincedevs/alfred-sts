@@ -3,6 +3,7 @@
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -35,6 +36,13 @@ class Config:
     task_budget_usd: float = 0.25  # a job stops if it would cost more than this
     email_address: str | None = None  # the Gmail account jobs send from
     email_app_password: str | None = None  # a Gmail app password, never your real one
+    # Alfred doesn't start talking on his own between these hours (start, end), except for
+    # reminders you set. None: no quiet hours.
+    quiet_hours: tuple[int, int] | None = (22, 7)
+    # Where you are: places, units, money and spelling default to these.
+    home: str = "Manila, Philippines"
+    units: str = "metric"  # metric | imperial
+    currency: str = "Philippine pesos (PHP, ₱)"
 
     @property
     def database_path(self) -> Path:
@@ -48,6 +56,29 @@ class Config:
     @property
     def audit_path(self) -> Path:
         return self.data_dir / "audit.jsonl"
+
+    @property
+    def profile_path(self) -> Path:
+        """What Alfred knows about you: one fact per line, yours to read and edit."""
+        return self.data_dir / "profile.md"
+
+    def home_text(self) -> str:
+        """For every prompt (Alfred's voice, the router, jobs): where the user is."""
+        offset = datetime.now().astimezone().strftime("%z")
+        examples = "°C, km, kg" if self.units == "metric" else "°F, miles, pounds"
+        return (
+            f"\n\n## Where the user is\nThe user lives in {self.home} (local time is "
+            f"UTC{offset[:3]}:{offset[3:]}). Unless they say otherwise: assume places, "
+            f"news, weather, shops and events near home; give {self.units} units "
+            f"({examples}) and prices in {self.currency}; use local dates and times."
+        )
+
+    def is_quiet(self, now: datetime | None = None) -> bool:
+        if not self.quiet_hours:
+            return False
+        start, end = self.quiet_hours
+        hour = (now or datetime.now()).hour
+        return start <= hour or hour < end if start > end else start <= hour < end
 
 
 def load_config(env: Mapping[str, str] | None = None) -> Config:
@@ -81,6 +112,10 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         ),
         email_address=(env.get("ALFRED_EMAIL") or "").strip() or None,
         email_app_password=(env.get("ALFRED_EMAIL_APP_PASSWORD") or "").replace(" ", "") or None,
+        quiet_hours=_hours(env.get("ALFRED_QUIET_HOURS"), defaults.quiet_hours),
+        home=env.get("ALFRED_HOME") or defaults.home,
+        units=_choice(env, "ALFRED_UNITS", defaults.units, ("metric", "imperial")),
+        currency=env.get("ALFRED_CURRENCY") or defaults.currency,
     )
 
 
@@ -111,6 +146,29 @@ def _on_off(env: Mapping[str, str], name: str, default: bool) -> bool:
     if raw in ("off", "false", "no", "0"):
         return False
     raise ConfigError(f"{name} must be on or off, got {raw!r}.")
+
+
+def _choice(env: Mapping[str, str], name: str, default: str, allowed: tuple[str, ...]) -> str:
+    raw = (env.get(name) or "").strip().lower() or default
+    if raw not in allowed:
+        raise ConfigError(f"{name} must be one of {', '.join(allowed)}, got {raw!r}.")
+    return raw
+
+
+def _hours(raw: str | None, default: tuple[int, int] | None) -> tuple[int, int] | None:
+    """ "22-7" means 10 pm to 7 am; "off" means no quiet hours."""
+    raw = (raw or "").strip().lower()
+    if not raw:
+        return default
+    if raw in ("off", "none", "no"):
+        return None
+    try:
+        start, end = (int(part) for part in raw.split("-"))
+    except ValueError:
+        raise ConfigError(f"ALFRED_QUIET_HOURS must look like 22-7 or off, got {raw!r}.") from None
+    if not (0 <= start <= 23 and 0 <= end <= 23):
+        raise ConfigError(f"ALFRED_QUIET_HOURS hours must be 0 to 23, got {raw!r}.")
+    return start, end
 
 
 def _device(raw: str | None) -> int | str | None:

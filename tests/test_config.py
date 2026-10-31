@@ -81,3 +81,34 @@ def test_email_settings():
     assert config.email_app_password == "abcdefghijklmnop"
     assert "email_app_password" in SECRET_SETTINGS  # never written to the log
     assert load_config({"OPENAI_API_KEY": "sk-test"}).email_address is None
+
+
+def test_quiet_hours():
+    from datetime import datetime
+
+    config = load_config({"OPENAI_API_KEY": "sk-test"})
+    assert config.quiet_hours == (22, 7)
+    night = [config.is_quiet(datetime(2026, 1, 1, hour)) for hour in (21, 22, 3, 6, 7, 12)]
+    assert night == [False, True, True, True, False, False]
+    assert (
+        load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_QUIET_HOURS": "off"}).quiet_hours is None
+    )
+    with pytest.raises(ConfigError):
+        load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_QUIET_HOURS": "late"})
+
+
+def test_home_settings_reach_the_prompts():
+    config = load_config({"OPENAI_API_KEY": "sk-test"})
+    text = config.home_text()
+    assert "Manila, Philippines" in text and "°C" in text and "PHP" in text
+    us = load_config(
+        {
+            "OPENAI_API_KEY": "sk-test",
+            "ALFRED_HOME": "Austin, Texas",
+            "ALFRED_UNITS": "Imperial",
+            "ALFRED_CURRENCY": "US dollars",
+        }
+    )
+    assert "Austin, Texas" in us.home_text() and "°F" in us.home_text()
+    with pytest.raises(ConfigError):
+        load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_UNITS": "furlongs"})

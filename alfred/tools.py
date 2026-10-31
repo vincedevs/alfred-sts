@@ -1,14 +1,19 @@
-"""What the router (GPT-6 Luna) can do besides web search: start, check, answer and
-stop background jobs.
+"""What the router (GPT-6 Luna) can do besides web search: background jobs (start,
+check, answer, stop), memory (remember, recall, forget) and reminders (set, list, cancel).
 
 Each tool is a plain async function. Pipecat reads its name, docstring and arguments
 to describe it to the model, and runs it here when the model calls it.
 """
 
+import time
+from datetime import datetime
+
 from pipecat.services.llm_service import FunctionCallParams
 
-from alfred.db import Database, Task
+from alfred.db import Database, Reminder, Task
+from alfred.memory import Memory
 from alfred.questions import Questions
+from alfred.reminders import Reminders, spoken_time
 from alfred.tasks import TaskRunner
 
 QUICK_ANSWER_SECONDS = 12  # a job done within this is answered straight away
@@ -86,6 +91,107 @@ def job_tools(runner: TaskRunner, db: Database, questions: Questions) -> list:
         await params.result_callback({"task_id": task_id, "stopped": stopped})
 
     return [do_task, task_status, answer_job, stop_task]
+
+
+def memory_tools(memory: Memory) -> list:
+    async def remember(params: FunctionCallParams, fact: str):
+        """Remember a lasting fact about the user, when they ask you to or state a lasting
+        preference ("I'm vegetarian").
+
+        Args:
+            fact: The fact as a short sentence about the user, e.g. "Is vegetarian."
+        """
+        new = memory.remember(fact)
+        await params.result_callback({"remembered": fact, "already_known": not new})
+
+    async def recall(params: FunctionCallParams, about: str = ""):
+        """Look up what Alfred knows about the user, and past conversations and job results
+        ("what did you find about ramen yesterday?").
+
+        Args:
+            about: What to look for, in a few words. Empty: just what Alfred knows about them.
+        """
+        found = memory.search(about) if about else []
+        await params.result_callback({"about_the_user": memory.facts(), "history": found})
+
+    async def forget(params: FunctionCallParams, about: str):
+        """Forget facts about the user, and past conversations, about something.
+
+        Args:
+            about: What to forget, in a few words, e.g. "my home address".
+        """
+        removed = memory.forget(about)
+        await params.result_callback({"forgotten_facts": removed})
+
+    return [remember, recall, forget]
+
+
+def reminder_tools(reminders: Reminders) -> list:
+    async def set_reminder(
+        params: FunctionCallParams,
+        text: str,
+        in_minutes: float = 0,
+        at: str = "",
+        repeat: str = "none",
+        run_as_job: bool = False,
+    ):
+        """Set a reminder. Alfred speaks up when it is due, even without "Hey Alfred".
+
+        Args:
+            text: What to remind the user of ("stretch"), or with run_as_job, the job to run
+                ("brief me on today's weather in Manila").
+            in_minutes: Minutes from now. Use this or `at`.
+            at: Local date and time as "YYYY-MM-DD HH:MM" (24-hour). Use this or in_minutes.
+            repeat: "none", "daily", "weekdays" or "weekly".
+            run_as_job: True to run `text` as a background job and say its result.
+        """
+        try:
+            due = _due_time(in_minutes, at)
+            reminder = reminders.add(text, due, repeat, run_as_job)
+        except ValueError as error:
+            await params.result_callback({"error": str(error)})
+            return
+        await params.result_callback(_describe_reminder(reminder))
+
+    async def list_reminders(params: FunctionCallParams):
+        """List the reminders still to come."""
+        upcoming = [_describe_reminder(reminder) for reminder in reminders.upcoming()]
+        await params.result_callback({"reminders": upcoming})
+
+    async def cancel_reminder(params: FunctionCallParams, reminder_id: int):
+        """Cancel a reminder (find its id with list_reminders).
+
+        Args:
+            reminder_id: The reminder to cancel.
+        """
+        await params.result_callback({"cancelled": reminders.cancel(reminder_id)})
+
+    return [set_reminder, list_reminders, cancel_reminder]
+
+
+def _due_time(in_minutes: float, at: str) -> float:
+    if at:
+        try:
+            due = datetime.strptime(at.strip(), "%Y-%m-%d %H:%M").timestamp()
+        except ValueError:
+            raise ValueError('at must look like "2026-10-31 15:30"') from None
+    elif in_minutes > 0:
+        due = time.time() + in_minutes * 60
+    else:
+        raise ValueError("Give either in_minutes or at")
+    if due < time.time() - 60:
+        raise ValueError("That time has already passed")
+    return due
+
+
+def _describe_reminder(reminder: Reminder) -> dict:
+    return {
+        "reminder_id": reminder.id,
+        "text": reminder.text,
+        "when": spoken_time(reminder.due_at),
+        "repeat": reminder.repeat,
+        "runs_a_job": reminder.run_job,
+    }
 
 
 def _describe(task: Task) -> dict:

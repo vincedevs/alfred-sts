@@ -4,17 +4,18 @@
 
 GPT-Live listens and talks at the same time, so you can interrupt it. When a
 question needs fresh facts, GPT-Live hands it to a cheaper text model (the
-"router", GPT-6 Luna) with OpenAI's hosted web search and Alfred's job tools
-(tools.py). OpenAI runs the hand-off itself ("Responses delegation"); Pipecat
-runs the job tools here when the router calls them.
+"router", GPT-6 Luna) with OpenAI's hosted web search and Alfred's own tools for jobs,
+memory and reminders (tools.py). OpenAI runs the hand-off itself ("Responses
+delegation"); Pipecat runs Alfred's tools here when the router calls them.
 
-Alfred also tells you about background jobs without being asked (announcer.py).
+Alfred also speaks up without being asked, about jobs and reminders (announcer.py).
 
 The session closes after about `idle_seconds` with nobody speaking, with a warning tone
 first; it stays open longer while a job is busy (idle.py).
 """
 
 import time
+from datetime import datetime
 
 from loguru import logger
 from pipecat.adapters.llm.schemas.tools_schema import AdapterType, ToolsSchema
@@ -42,11 +43,9 @@ from pipecat.workers.runner import WorkerRunner
 from alfred.announcer import JobAnnouncer, opening_messages, recent_jobs_context
 from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.config import PROJECT_ROOT, Config, load_prompt
-from alfred.db import Database
 from alfred.idle import QuietTimer, check_every
-from alfred.questions import Questions
-from alfred.tasks import TaskRunner
-from alfred.tools import job_tools
+from alfred.services import Services
+from alfred.tools import job_tools, memory_tools, reminder_tools
 from alfred.transport import EngineTransport
 
 # Pipecat frames worth a line in the debug log: who is talking, transcripts, tools, errors.
@@ -64,42 +63,40 @@ LOGGED_FRAMES = (
 WEB_SEARCH = {"type": "web_search"}  # hosted by OpenAI, runs on their side
 
 
-async def run_conversation(
-    engine: AudioEngine, config: Config, tasks: TaskRunner, db: Database, questions: Questions
-) -> None:
-    """Talk until nobody has spoken for a while, then return."""
+async def run_conversation(engine: AudioEngine, services: Services) -> list[str]:
+    """Talk until nobody has spoken for a while. Returns what was said, line by line."""
+    s, transcript = services, []
     transport = EngineTransport(engine)
-    llm = create_gpt_live(config, recent_jobs_context(db))
-    # The router's tools: OpenAI's web search plus Alfred's job tools (run here).
-    tools = ToolsSchema(
-        standard_tools=job_tools(tasks, db, questions),
-        custom_tools={AdapterType.OPENAI: [WEB_SEARCH]},
-    )
-    opening, told = opening_messages(db, questions)
-    context = LLMContext(messages=opening, tools=tools)
+    llm = create_gpt_live(s.config, *background(s))
+    opening, told_jobs, said_reminders = opening_messages(s.db, s.questions, s.reminders)
+    context = LLMContext(messages=opening, tools=router_tools(s))
     user_turns, alfred_turns = LLMContextAggregatorPair(context)
     pipeline = Pipeline([transport.input(), user_turns, llm, transport.output(), alfred_turns])
-    worker = create_worker(pipeline, config)
-    announcer = JobAnnouncer(llm, db, tasks, questions)
+    worker = create_worker(pipeline, s.config)
+    announcer = JobAnnouncer(llm, s.db, s.tasks, s.questions, s.reminders)
 
     @llm.event_handler("on_session_started")
     async def on_session_started(_llm, _session):
         announcer.session_open = True
-        db.mark_told(told)  # only now: if the session failed to open, you'd not hear them
+        # only now: if the session failed to open, you'd not have heard them
+        s.db.mark_told(told_jobs)
+        s.reminders.mark_said(said_reminders)
         logger.info("Listening (GPT-Live session open)")
         transport.mic_input.start_forwarding()
 
     warning_sound = load_sound(PROJECT_ROOT / "sounds" / "session_warning.wav")
-    timer = QuietTimer(worker, engine, warning_sound, config, tasks, questions, announcer)
+    timer = QuietTimer(worker, engine, warning_sound, s.config, s.tasks, s.questions, announcer)
     timer.listen(worker, user_turns)
 
-    def on_activity(said: str | None = None) -> None:
+    def on_line(who: str, text: str) -> None:
         timer.activity()
-        if said:
-            announcer.user_said(str(said))
+        transcript.append(f"{who}: {text}")
+        if who == "You":
+            announcer.user_said(text)
 
-    log_conversation(llm, user_turns, alfred_turns, on_activity)
-    questions.new_question.clear()  # waiting questions are in the opening message
+    log_conversation(llm, user_turns, alfred_turns, on_line)
+    s.questions.new_question.clear()  # what's waiting is in the opening message
+    s.reminders.wake.clear()
     announcer.start()
     await worker.queue_frame(LLMRunFrame())  # opens the GPT-Live session
     pipeline_runner = WorkerRunner(handle_sigint=False)  # Ctrl+C is handled in __main__.py
@@ -114,11 +111,32 @@ async def run_conversation(
         logger.info(
             f"Session closed after {minutes:.1f} min (about ${minutes * 0.05:.2f} of GPT-Live)"
         )
+    return transcript
 
 
-def create_gpt_live(config: Config, context: str = "") -> OpenAILiveLLMService:
-    """GPT-Live, handing look-ups to the router model (OpenAI runs the hand-off).
-    `context` is added to its instructions (recent jobs, so it isn't starting blank)."""
+def background(services: Services) -> tuple[str, str]:
+    """Added to the instructions (GPT-Live's, then the router's): the time, where you are,
+    what Alfred knows about you, and recent jobs, so a conversation doesn't start blank."""
+    now = f"\n\n## Now\n{datetime.now():%A %d %B %Y, %I:%M %p} (the user's local time)."
+    about = services.config.home_text() + services.memory.profile_text()
+    return now + about + recent_jobs_context(services.db), now + about
+
+
+def router_tools(services: Services) -> ToolsSchema:
+    """The router's tools: OpenAI's web search, plus Alfred's own (run here)."""
+    s = services
+    own = job_tools(s.tasks, s.db, s.questions) + memory_tools(s.memory)
+    return ToolsSchema(
+        standard_tools=own + reminder_tools(s.reminders),
+        custom_tools={AdapterType.OPENAI: [WEB_SEARCH]},
+    )
+
+
+def create_gpt_live(
+    config: Config, voice_extra: str = "", router_extra: str = ""
+) -> OpenAILiveLLMService:
+    """GPT-Live, handing look-ups to the router model (OpenAI runs the hand-off). The
+    extras are added to each one's instructions (see background())."""
     logger.debug(
         f"Opening GPT-Live session: live model {config.live_model}, "
         f"router {config.router_model}, voice {config.voice or 'default'}"
@@ -127,13 +145,13 @@ def create_gpt_live(config: Config, context: str = "") -> OpenAILiveLLMService:
         api_key=config.openai_api_key,
         settings=OpenAILiveLLMService.Settings(
             model=config.live_model,
-            system_instruction=load_prompt("voice") + context,
+            system_instruction=load_prompt("voice") + voice_extra,
             voice=config.voice,
         ),
         delegation=OpenAILiveLLMService.ResponsesDelegation(
             settings=OpenAIResponsesLLMService.Settings(
                 model=config.router_model,
-                system_instruction=load_prompt("router"),
+                system_instruction=load_prompt("router") + router_extra,
                 reasoning=OpenAIResponsesLLMService.ReasoningConfig(effort="low"),
             ),
         ),
@@ -158,9 +176,9 @@ def create_worker(pipeline: Pipeline, config: Config) -> PipelineWorker:
     )
 
 
-def log_conversation(llm, user_turns, alfred_turns, on_activity) -> None:
-    """Show what was said, and when the router looks something up. on_activity is called
-    whenever someone speaks, with what you said."""
+def log_conversation(llm, user_turns, alfred_turns, on_line) -> None:
+    """Show what was said, and when the router looks something up. on_line(who, text) is
+    called with each thing said ("You" or "Alfred")."""
 
     @llm.event_handler("on_delegation_created")
     async def on_delegation_created(_llm, delegation):
@@ -169,10 +187,10 @@ def log_conversation(llm, user_turns, alfred_turns, on_activity) -> None:
     @user_turns.event_handler("on_user_turn_message_added")
     async def on_user_turn(_aggregator, message):
         logger.info(f"You: {message.content}")
-        on_activity(message.content)
+        on_line("You", str(message.content))
 
     @alfred_turns.event_handler("on_assistant_turn_stopped")
     async def on_alfred_turn(_aggregator, message):
         if message.content:
             logger.info(f"Alfred: {message.content}")
-        on_activity()
+        on_line("Alfred", str(message.content or ""))

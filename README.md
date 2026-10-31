@@ -9,13 +9,17 @@ chime, then just talk. You can interrupt him at any time.
   the background while you carry on talking. A chime tells you when one is done, and Alfred
   tells you the result.
 - **Email:** Alfred can send email from your Gmail account, but only after you say yes.
+- **Memory:** Alfred remembers what matters about you ("I'm vegetarian") and what you've
+  talked about and asked him to find.
+- **Reminders:** "Remind me in 10 minutes to stretch", "every weekday at 8, brief me on
+  the weather". Alfred speaks up when they're due, without "Hey Alfred".
 
 ## What it sounds like
 
 | Sound | Meaning |
 | --- | --- |
 | Wake chime | Alfred heard "Hey Alfred" and is listening |
-| Soft two-note chime | A background job finished, or a job needs your answer |
+| Soft two-note chime | A background job finished, a job needs your answer, or a reminder is due |
 | Single soft tick | Alfred will stop listening in 5 seconds unless you speak |
 | Low two-note sound | Alfred has stopped listening: say "Hey Alfred" next time |
 
@@ -29,8 +33,22 @@ waiting for your answer, he stays with you for up to 2 minutes.
 - "How's my job going?", "What did you find?", "Stop that job."
 - "Make me a chart of the peso against the US dollar over the last year."
 - "Research the latest Grammys news and email it to me."
+- "Remember that I'm vegetarian." "What do you know about me?" "Forget my address."
+- "What did you find about ramen yesterday?"
+- "Remind me at 3 pm to call Mum." "What reminders do I have?" "Cancel that reminder."
 
 Notes, charts and anything else Alfred makes are saved in `~/.alfred/workspace`.
+
+## Memory and reminders
+
+- **What Alfred knows about you** is in `~/.alfred/profile.md`, one fact per line. Read it,
+  edit it, or ask him to forget something. After each conversation he notes anything
+  lasting you mentioned, and keeps a short summary of what you talked about.
+- **Reminders you set go off on time**, even at night. Ones that came due while Alfred was
+  off are mentioned when he starts again (if they're from the last 12 hours); repeating
+  ones simply carry on.
+- **Quiet hours** (10 pm to 7 am by default): Alfred doesn't start talking on his own, and
+  job results and questions wait until you next speak to him. Your reminders still go off.
 
 ## Staying in control
 
@@ -84,6 +102,8 @@ most likely to change:
 | `ALFRED_VOICE` | Alfred's voice. `vesper` is British; others include `marin`, `cedar`, `stone`, `willow` (Irish) and `quartz` (Australian) |
 | `ALFRED_WAKE_THRESHOLD` | Raise it if Alfred wakes by mistake; lower it if he misses you |
 | `ALFRED_IDLE_SECONDS` | How long Alfred waits in silence before he stops listening |
+| `ALFRED_QUIET_HOURS` | When Alfred stays quiet unless a reminder is due, e.g. `22-7`, or `off` |
+| `ALFRED_HOME`, `ALFRED_UNITS`, `ALFRED_CURRENCY` | Where you are: Alfred assumes this place, `metric` or `imperial` units, and this currency unless you say otherwise |
 | `ALFRED_INPUT_DEVICE`, `ALFRED_OUTPUT_DEVICE` | Which microphone and speaker to use (list them with `uv run python -m sounddevice`) |
 | `ALFRED_TASK_BUDGET_USD` | The most one background job may cost |
 
@@ -97,8 +117,11 @@ and Claude account dashboards.
 
 Your voice goes to OpenAI while Alfred is listening, and background jobs run on Claude.
 Nothing is sent before you say "Hey Alfred", except when Alfred speaks up himself to ask
-you something. Everything Alfred keeps (jobs, questions, the action record and saved files)
-stays in `~/.alfred` on your computer.
+you something. After each conversation, its transcript goes to Claude once, to note anything worth
+remembering; his memory keeps only those notes. Everything Alfred keeps (what he knows
+about you, conversation summaries, jobs, reminders, the action record and saved files)
+stays in `~/.alfred` on your computer. The detailed logs in `logs/` also record what was
+said; delete them whenever you like.
 
 ## Troubleshooting
 

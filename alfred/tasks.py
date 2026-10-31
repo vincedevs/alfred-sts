@@ -66,6 +66,7 @@ class TaskRunner:
         audit: AuditLog,
         on_finished: Callable[[Task], None] | None = None,
         run_agent: AgentRunner | None = None,
+        about_user: Callable[[], str] = lambda: "",
     ):
         self._db = db
         self._config = config
@@ -76,6 +77,7 @@ class TaskRunner:
         # a conversation is open (voice.py adds and removes that one).
         self.on_finished: list[Callable[[Task], None]] = [on_finished] if on_finished else []
         self._run_agent = run_agent or self._run_claude
+        self._about_user = about_user  # what Alfred knows about you, for jobs' instructions
         self._jobs: dict[int, asyncio.Task] = {}
         self._waiting: set[int] = set()  # jobs someone is waiting on (see wait)
         self._closing = False
@@ -213,7 +215,7 @@ class TaskRunner:
         )
         return ClaudeAgentOptions(
             model=config.agent_model,
-            system_prompt=load_prompt("agent"),
+            system_prompt=load_prompt("agent") + self._about_user(),
             tools=AGENT_TOOLS,  # the built-in tools Claude can see, plus Alfred's own:
             mcp_servers={"alfred": agent_tools_server(task_id, config, self._questions)},
             hooks={"PreToolUse": [guard]},

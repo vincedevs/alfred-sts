@@ -5,7 +5,9 @@ The whole program is one loop:
     -> listen again
 
 Background jobs (tasks.py) run alongside that loop; a soft chime plays when one finishes.
-When a job needs your answer, Alfred chimes and speaks up without waiting for the wake word.
+Alfred also chimes and speaks up without the wake word when a reminder goes off, or a job
+needs your answer (not during quiet hours, except reminders). After each conversation,
+memory.py notes anything worth remembering.
 
 Every run writes a full DEBUG log to logs/alfred-<date>-<time>.log; the terminal
 shows ALFRED_LOG_LEVEL (INFO by default).
@@ -25,7 +27,10 @@ from alfred.audio import AudioEngine, load_sound
 from alfred.audit import AuditLog
 from alfred.config import PROJECT_ROOT, SECRET_SETTINGS, Config, ConfigError, load_config
 from alfred.db import Database
+from alfred.memory import Memory
 from alfred.questions import Questions
+from alfred.reminders import Reminders
+from alfred.services import Services
 from alfred.tasks import TaskRunner
 from alfred.voice import run_conversation
 from alfred.wakeword import WakeWordDetector
@@ -42,37 +47,61 @@ async def run(config: Config) -> None:
     engine = AudioEngine(config.input_device, config.output_device, config.echo_cancellation)
     engine.start()
 
-    config.workspace_dir.mkdir(parents=True, exist_ok=True)
-    db = Database(config.database_path)
-    questions = Questions(db)
-    audit = AuditLog(config.audit_path)
-    tasks = TaskRunner(
-        db, config, questions, audit, on_finished=lambda _task: engine.play(done_sound)
-    )
-    if resumed := tasks.resume_unfinished():
-        logger.info(f"Resumed {resumed} unfinished job(s)")
-    handle_shutdown_signals(tasks)
+    def chime(_task) -> None:  # a job finished (silent during quiet hours)
+        if not config.is_quiet():
+            engine.play(done_sound)
+
+    services = start_services(config, chime)
+    handle_shutdown_signals(services.tasks)
+    background = {asyncio.create_task(services.reminders.run(), name="reminders")}
     try:
         while True:
             logger.info('Waiting for "Hey Alfred"...')
-            if await wait_for_wake_word_or_question(engine, detector, questions):
+            reason = await wait_for_wake_or_news(engine, detector, services)
+            if reason == "wake word":
                 logger.info(f"Wake word heard (score {detector.last_score:.2f})")
                 engine.play(wake_sound)  # tells you Alfred is listening
             else:
-                logger.info("A job has a question for you: speaking up")
+                logger.info(f"Speaking up: {reason}")
                 engine.play(done_sound)
-            await run_conversation(engine, config, tasks, db, questions)
+            transcript = await run_conversation(engine, services)
 
             # Pipecat's runner swallows the cancellation Ctrl+C sends, so pass it on.
             if asyncio.current_task().cancelling():
                 raise asyncio.CancelledError
             engine.play(sleep_sound)  # tells you to say "Hey Alfred" next time
+            learning = asyncio.create_task(services.memory.learn(transcript), name="learn")
+            background.add(learning)
+            learning.add_done_callback(background.discard)
             detector.reset()
             engine.clear_mic()  # don't let the end of the conversation wake us again
     finally:
-        await tasks.close()  # unfinished jobs stay recorded and resume next start
-        db.close()
+        for job in background:
+            job.cancel()
+        await services.tasks.close()  # unfinished jobs stay recorded and resume next start
+        services.db.close()
         engine.close()
+
+
+def start_services(config: Config, on_job_finished) -> Services:
+    config.workspace_dir.mkdir(parents=True, exist_ok=True)
+    db = Database(config.database_path)
+    questions = Questions(db)
+    memory = Memory(db, config)
+    tasks = TaskRunner(
+        db,
+        config,
+        questions,
+        AuditLog(config.audit_path),
+        on_finished=on_job_finished,
+        # jobs know where you are and what Alfred knows about you
+        about_user=lambda: config.home_text() + memory.profile_text(),
+    )
+    if resumed := tasks.resume_unfinished():
+        logger.info(f"Resumed {resumed} unfinished job(s)")
+    reminders = Reminders(db, config, tasks)
+    reminders.catch_up()
+    return Services(config, db, tasks, questions, memory, reminders)
 
 
 def handle_shutdown_signals(tasks: TaskRunner) -> None:
@@ -95,19 +124,32 @@ def handle_shutdown_signals(tasks: TaskRunner) -> None:
         loop.add_signal_handler(sig, shut_down)
 
 
-async def wait_for_wake_word_or_question(
-    engine: AudioEngine, detector: WakeWordDetector, questions: Questions
-) -> bool:
-    """True when you said the wake word; False when a job asked you something that
-    Alfred hasn't said yet (the conversation clears new_question once it has)."""
-    wake = asyncio.create_task(wait_for_wake_word(engine, detector))
-    asked = asyncio.create_task(questions.new_question.wait())
-    try:
-        done, _ = await asyncio.wait({wake, asked}, return_when=asyncio.FIRST_COMPLETED)
-    finally:
-        wake.cancel()
-        asked.cancel()
-    return wake in done
+async def wait_for_wake_or_news(
+    engine: AudioEngine, detector: WakeWordDetector, services: Services
+) -> str:
+    """Wait until you say the wake word, or there's something to speak up about: a reminder
+    going off, or a job with a question or a result for you. During quiet hours only
+    reminders speak up; the rest waits for the next conversation."""
+    s = services
+    while True:
+        waits = {
+            asyncio.create_task(wait_for_wake_word(engine, detector)): "wake word",
+            asyncio.create_task(s.reminders.wake.wait()): "a reminder",
+            asyncio.create_task(s.questions.new_question.wait()): "a job",
+        }
+        try:
+            done, _ = await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for waiting in waits:
+                waiting.cancel()
+        if any(waits[task] == "wake word" for task in done):
+            return "wake word"
+        s.reminders.wake.clear()
+        s.questions.new_question.clear()
+        if s.reminders.unsaid():
+            return "a reminder"
+        if s.has_news() and not s.config.is_quiet():
+            return "a job"
 
 
 async def wait_for_wake_word(engine: AudioEngine, detector: WakeWordDetector) -> None:

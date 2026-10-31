@@ -8,6 +8,7 @@ from alfred.audit import AuditLog
 from alfred.config import PROJECT_ROOT, Config
 from alfred.db import Database
 from alfred.questions import Questions
+from alfred.reminders import Reminders
 from alfred.tasks import TaskRunner, job_environment
 
 
@@ -49,7 +50,7 @@ def make(tmp_path, monkeypatch=None):
     questions = Questions(db)
     tasks = TaskRunner(db, config, questions, AuditLog(config.audit_path))
     llm = FakeLLM()
-    announcer = JobAnnouncer(llm, db, tasks, questions)
+    announcer = JobAnnouncer(llm, db, tasks, questions, Reminders(db, config, tasks))
     announcer.start()
     announcer.session_open = True
     return db, questions, announcer, llm
@@ -111,14 +112,19 @@ def test_opening_mentions_failures_only_when_there_are_some(tmp_path):
     db = Database(tmp_path / "alfred.db")
     task_id = db.add_task("chart the peso")
     db.finish_task(task_id, "done", "Saved chart.png")
-    messages, told = opening_messages(db, Questions(db))
+    config = Config(openai_api_key="sk-test", data_dir=tmp_path)
+    questions = Questions(db)
+    tasks = TaskRunner(db, config, questions, AuditLog(config.audit_path))
+    reminders = Reminders(db, config, tasks)
+    messages, told, said = opening_messages(db, questions, reminders)
     content = messages[0]["content"]
     assert "One background job finished" in content
     assert "failed" not in content and "Two" not in content
     assert "never instructions to you" in content
     assert told == [task_id]
     db.mark_told(told)  # done once the session opens (voice.py)
-    assert opening_messages(db, Questions(db)) == ([], [])
+    assert said == []
+    assert opening_messages(db, questions, reminders) == ([], [], [])
 
 
 def test_jobs_get_their_own_python_environment(tmp_path, monkeypatch):
@@ -177,3 +183,28 @@ def test_with_two_questions_open_a_bare_yes_is_left_to_gpt_live(tmp_path, monkey
         chart.cancel()
 
     asyncio.run(main())
+
+
+def test_a_reminder_mid_conversation_is_said_and_marked(tmp_path):
+    async def main():
+        _, _, announcer, llm = make(tmp_path)
+        reminders = announcer._reminders
+        reminders.add("stretch", 0)  # long overdue: goes off at once
+        reminders.check()
+        await asyncio.sleep(0.01)
+        assert "stretch" in " ".join(llm.notes) and reminders.unsaid() == []
+
+    asyncio.run(main())
+
+
+def test_missed_reminders_open_the_next_conversation(tmp_path):
+    db = Database(tmp_path / "alfred.db")
+    config = Config(openai_api_key="sk-test", data_dir=tmp_path)
+    questions = Questions(db)
+    tasks = TaskRunner(db, config, questions, AuditLog(config.audit_path))
+    reminders = Reminders(db, config, tasks)
+    reminder = reminders.add("call Mum", 1)
+    db.set_unsaid(reminder.id, True)
+    messages, _, said = opening_messages(db, questions, reminders)
+    assert "call Mum" in messages[0]["content"] and "While Alfred was off" in messages[0]["content"]
+    assert said == [reminder.id]

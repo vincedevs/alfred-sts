@@ -1,6 +1,7 @@
-"""What Alfred says about background jobs during a conversation, without being asked.
+"""What Alfred says without being asked: about background jobs, and reminders.
 
-- A job finishes or asks you something while you talk: GPT-Live is told, and says it.
+- A job finishes or asks you something, or a reminder goes off, while you talk:
+  GPT-Live is told, and says it.
 - It happened between conversations: the next conversation opens with it.
 - Right after Alfred asks "may I…?", a clear spoken yes or no in your next reply goes
   straight to the job. GPT-Live sometimes said "I'll pass that along" without doing it;
@@ -14,8 +15,9 @@ import time
 from loguru import logger
 from pipecat.services.openai.live import events as live_events
 
-from alfred.db import Database, Question, Task
+from alfred.db import Database, Question, Reminder, Task
 from alfred.questions import Questions
+from alfred.reminders import Reminders, spoken_time
 from alfred.tasks import TaskRunner
 
 QUICK_ANSWER_WINDOW = 120  # seconds after Alfred asks in which a bare yes or no counts
@@ -42,8 +44,11 @@ def quick_answer(said: str) -> str | None:
 
 
 class JobAnnouncer:
-    def __init__(self, llm, db: Database, tasks: TaskRunner, questions: Questions):
+    def __init__(
+        self, llm, db: Database, tasks: TaskRunner, questions: Questions, reminders: Reminders
+    ):
         self._llm, self._db, self._tasks, self._questions = llm, db, tasks, questions
+        self._reminders = reminders
         self.session_open = False
         self.closing = False  # the session is ending: anything new waits for the next one
         self._asked: tuple[Question, float] | None = None  # the last approval Alfred asked
@@ -51,11 +56,13 @@ class JobAnnouncer:
     def start(self) -> None:
         self._tasks.on_finished.append(self._job_finished)
         self._questions.on_asked.append(self._job_asked)
+        self._reminders.on_due.append(self._reminder_due)
         self._expect_answer()  # to a question the opening message asks
 
     def stop(self) -> None:
         self._tasks.on_finished.remove(self._job_finished)
         self._questions.on_asked.remove(self._job_asked)
+        self._reminders.on_due.remove(self._reminder_due)
 
     def user_said(self, text: str) -> None:
         """Called with each thing you say. Only your next reply after Alfred asks counts:
@@ -81,6 +88,14 @@ class JobAnnouncer:
         if self.session_open and not self.closing and task.status != "stopped":
             self._db.mark_told([task.id])
             self._tell(finished_job_note(task))
+
+    def _reminder_due(self, reminder: Reminder) -> None:
+        if self.session_open and not self.closing:
+            self._reminders.mark_said([reminder.id])
+            self._tell(
+                f"A reminder the user set has just gone off: {reminder.text}. Tell the user "
+                f'now, briefly ("Your reminder: ..."). {SPEAKING_RULES}'
+            )
 
     def _job_asked(self, question: Question) -> None:
         if not self.session_open or self.closing:
@@ -138,18 +153,28 @@ def recent_jobs_context(db: Database) -> str:
     )
 
 
-def opening_messages(db: Database, questions: Questions) -> tuple[list[dict], list[int]]:
-    """If jobs finished or asked something since the last conversation, Alfred opens with
-    that. A trailing developer message is how GPT-Live is asked to speak first.
-    Also returns the jobs to mark as told once the session has actually opened."""
+def opening_messages(
+    db: Database, questions: Questions, reminders: Reminders
+) -> tuple[list[dict], list[int], list[int]]:
+    """If reminders went off, or jobs finished or asked something, since the last
+    conversation, Alfred opens with that. A trailing developer message is how GPT-Live is
+    asked to speak first. Also returns the jobs and reminders to mark as told once the
+    session has actually opened."""
     untold = db.untold_results()
     told = [task.id for task in untold]
     finished = [task for task in untold if task.status in ("done", "failed")]  # not "stopped"
     waiting = questions.waiting()
-    if not finished and not waiting:
-        return [], told
-    logger.info(f"Opening with {len(finished)} finished job(s), {len(waiting)} question(s)")
+    due = reminders.unsaid()
+    if not finished and not waiting and not due:
+        return [], told, []
+    logger.info(
+        f"Opening with {len(due)} reminder(s), {len(finished)} finished job(s), "
+        f"{len(waiting)} question(s)"
+    )
     parts = ["Before anything else, tell the user briefly."]
+    if due:
+        parts.append(f"{_count(len(due), 'reminder')} the user set went off:")
+        parts += [f"- {_when_it_went_off(r.due_at)}: {r.text}" for r in due]
     if finished:
         parts.append(f"{_count(len(finished), 'background job')} finished since you last spoke:")
         parts += [f"- {t.status}: {t.request[:150]}. Result: {t.result}" for t in finished]
@@ -161,7 +186,13 @@ def opening_messages(db: Database, questions: Questions) -> tuple[list[dict], li
         )
         parts += [f"- (job {q.task_id}) {q.text}" for q in waiting]
     parts.append(SPEAKING_RULES)
-    return [{"role": "developer", "content": "\n".join(parts)}], told
+    return [{"role": "developer", "content": "\n".join(parts)}], told, [r.id for r in due]
+
+
+def _when_it_went_off(due_at: float) -> str:
+    if time.time() - due_at < 120:
+        return "Just now"
+    return f"While Alfred was off or asleep, at {spoken_time(due_at)}"
 
 
 def _count(n: int, thing: str) -> str:

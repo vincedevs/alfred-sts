@@ -1,4 +1,5 @@
-"""Alfred's one SQLite database file: background jobs and the questions they ask you.
+"""Alfred's one SQLite database file: background jobs, the questions they ask you,
+reminders, and a searchable history of past conversations and job results.
 
 A job is written here when it starts and updated as it runs, so after a restart
 Alfred knows which jobs to pick up again and which results it hasn't told you yet.
@@ -29,6 +30,18 @@ CREATE TABLE IF NOT EXISTS questions (
     answer      TEXT,
     created_at  REAL    NOT NULL
 );
+CREATE TABLE IF NOT EXISTS reminders (
+    id          INTEGER PRIMARY KEY,
+    text        TEXT    NOT NULL,           -- what to say, or the job to run
+    due_at      REAL    NOT NULL,           -- next time it goes off (Unix time)
+    repeat      TEXT    NOT NULL,           -- none | daily | weekdays | weekly
+    run_job     INTEGER NOT NULL,           -- 1: start a background job instead of speaking
+    status      TEXT    NOT NULL,           -- waiting | done | missed | cancelled
+    unsaid      INTEGER NOT NULL DEFAULT 0, -- 1: went off, but Alfred hasn't said it yet
+    created_at  REAL    NOT NULL
+);
+-- Full-text search over what happened: job results and short conversation summaries.
+CREATE VIRTUAL TABLE IF NOT EXISTS history USING fts5(kind, text, created_at UNINDEXED);
 """
 
 
@@ -42,6 +55,18 @@ class Task:
     created_at: float
     finished_at: float | None
     told_user: bool
+
+
+@dataclass
+class Reminder:
+    id: int
+    text: str
+    due_at: float
+    repeat: str
+    run_job: bool
+    status: str
+    unsaid: bool
+    created_at: float
 
 
 @dataclass
@@ -80,6 +105,9 @@ class Database:
             "UPDATE tasks SET status = ?, result = ?, finished_at = ? WHERE id = ?",
             (status, result, time.time(), task_id),
         )
+        if status == "done":  # searchable later: "what did you find about ramen?"
+            request = self.get_task(task_id).request
+            self.add_history("job", f"You asked: {request}\nResult: {result}", commit=False)
         self._conn.commit()
 
     def mark_told(self, task_ids: list[int]) -> None:
@@ -132,8 +160,86 @@ class Database:
         self._conn.execute("UPDATE questions SET status = 'expired' WHERE status = 'waiting'")
         self._conn.commit()
 
+    # Reminders
+
+    def add_reminder(self, text: str, due_at: float, repeat: str, run_job: bool) -> Reminder:
+        cursor = self._conn.execute(
+            "INSERT INTO reminders (text, due_at, repeat, run_job, status, created_at) "
+            "VALUES (?, ?, ?, ?, 'waiting', ?)",
+            (text, due_at, repeat, int(run_job), time.time()),
+        )
+        self._conn.commit()
+        return self.get_reminder(cursor.lastrowid)
+
+    def get_reminder(self, reminder_id: int) -> Reminder | None:
+        row = self._conn.execute("SELECT * FROM reminders WHERE id = ?", (reminder_id,))
+        row = row.fetchone()
+        return _to_reminder(row) if row else None
+
+    def reminders_with_status(self, *statuses: str) -> list[Reminder]:
+        marks = ", ".join("?" * len(statuses))
+        rows = self._conn.execute(
+            f"SELECT * FROM reminders WHERE status IN ({marks}) ORDER BY due_at", statuses
+        )
+        return [_to_reminder(row) for row in rows]
+
+    def update_reminder(self, reminder_id: int, status: str, due_at: float | None = None) -> None:
+        self._conn.execute(
+            "UPDATE reminders SET status = ?, due_at = COALESCE(?, due_at) WHERE id = ?",
+            (status, due_at, reminder_id),
+        )
+        self._conn.commit()
+
+    def set_unsaid(self, reminder_id: int, unsaid: bool) -> None:
+        self._conn.execute(
+            "UPDATE reminders SET unsaid = ? WHERE id = ?", (int(unsaid), reminder_id)
+        )
+        self._conn.commit()
+
+    def unsaid_reminders(self) -> list[Reminder]:
+        rows = self._conn.execute("SELECT * FROM reminders WHERE unsaid = 1 ORDER BY due_at")
+        return [_to_reminder(row) for row in rows]
+
+    # History: full-text search with SQLite's built-in FTS5
+
+    def add_history(self, kind: str, text: str, commit: bool = True) -> None:
+        self._conn.execute(
+            "INSERT INTO history (kind, text, created_at) VALUES (?, ?, ?)",
+            (kind, text, time.time()),
+        )
+        if commit:
+            self._conn.commit()
+
+    def search_history(self, words: list[str], limit: int = 5) -> list[tuple[str, float]]:
+        """Entries matching any of the words, best matches first: (text, created_at)."""
+        if not words:
+            return []
+        rows = self._conn.execute(
+            "SELECT text, created_at FROM history WHERE history MATCH ? ORDER BY rank LIMIT ?",
+            (_any_of(words), limit),
+        )
+        return [(row["text"], row["created_at"]) for row in rows]
+
+    def delete_history(self, words: list[str]) -> int:
+        """Delete entries containing all of the words. Returns how many."""
+        if not words:
+            return 0
+        query = " AND ".join(f'"{word}"' for word in words)
+        cursor = self._conn.execute("DELETE FROM history WHERE history MATCH ?", (query,))
+        self._conn.commit()
+        return cursor.rowcount
+
     def close(self) -> None:
         self._conn.close()
+
+
+def _to_reminder(row: sqlite3.Row) -> Reminder:
+    return Reminder(**{**dict(row), "run_job": bool(row["run_job"]), "unsaid": bool(row["unsaid"])})
+
+
+def _any_of(words: list[str]) -> str:
+    """An FTS5 query matching any of the words (each quoted, so it's never parsed as syntax)."""
+    return " OR ".join(f'"{word}"' for word in words)
 
 
 def _to_task(row: sqlite3.Row) -> Task:
