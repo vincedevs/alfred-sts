@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS reminders (
     run_job     INTEGER NOT NULL,           -- 1: start a background job instead of speaking
     status      TEXT    NOT NULL,           -- waiting | done | missed | cancelled
     unsaid      INTEGER NOT NULL DEFAULT 0, -- 1: went off, but Alfred hasn't said it yet
-    created_at  REAL    NOT NULL
+    created_at  REAL    NOT NULL,
+    kind        TEXT    NOT NULL DEFAULT 'reminder'  -- reminder | timer | alarm
 );
 -- Full-text search over what happened: job results and short conversation summaries.
 CREATE VIRTUAL TABLE IF NOT EXISTS history USING fts5(kind, text, created_at UNINDEXED);
@@ -67,6 +68,7 @@ class Reminder:
     status: str
     unsaid: bool
     created_at: float
+    kind: str = "reminder"  # reminder | timer | alarm
 
 
 @dataclass
@@ -86,7 +88,16 @@ class Database:
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
+        self._add_missing_columns()
         self._conn.commit()
+
+    def _add_missing_columns(self) -> None:
+        """Databases made by an older Alfred lack columns added since."""
+        columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(reminders)")}
+        if "kind" not in columns:
+            self._conn.execute(
+                "ALTER TABLE reminders ADD COLUMN kind TEXT NOT NULL DEFAULT 'reminder'"
+            )
 
     def add_task(self, request: str) -> int:
         cursor = self._conn.execute(
@@ -162,11 +173,13 @@ class Database:
 
     # Reminders
 
-    def add_reminder(self, text: str, due_at: float, repeat: str, run_job: bool) -> Reminder:
+    def add_reminder(
+        self, text: str, due_at: float, repeat: str, run_job: bool, kind: str = "reminder"
+    ) -> Reminder:
         cursor = self._conn.execute(
-            "INSERT INTO reminders (text, due_at, repeat, run_job, status, created_at) "
-            "VALUES (?, ?, ?, ?, 'waiting', ?)",
-            (text, due_at, repeat, int(run_job), time.time()),
+            "INSERT INTO reminders (text, due_at, repeat, run_job, status, created_at, kind) "
+            "VALUES (?, ?, ?, ?, 'waiting', ?, ?)",
+            (text, due_at, repeat, int(run_job), time.time(), kind),
         )
         self._conn.commit()
         return self.get_reminder(cursor.lastrowid)

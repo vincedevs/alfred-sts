@@ -208,3 +208,39 @@ def test_missed_reminders_open_the_next_conversation(tmp_path):
     messages, _, said = opening_messages(db, questions, reminders)
     assert "call Mum" in messages[0]["content"] and "While Alfred was off" in messages[0]["content"]
     assert said == [reminder.id]
+
+
+def test_stop_and_snooze_act_at_once_while_ringing(tmp_path):
+    from alfred.ringer import Ringer
+
+    class Engine:
+        def play(self, pcm): ...
+        def queued_playback_seconds(self):
+            return 0.0
+
+        def stop_playback(self): ...
+
+    async def main():
+        db = Database(tmp_path / "alfred.db")
+        config = Config(openai_api_key="sk-test", data_dir=tmp_path)
+        questions = Questions(db)
+        tasks = TaskRunner(db, config, questions, AuditLog(config.audit_path))
+        reminders = Reminders(db, config, tasks)
+        ringer, llm = Ringer(Engine(), b"\0\0", b"\0\0", 16_000), FakeLLM()
+        announcer = Announcer(llm, db, tasks, questions, reminders, ringer)
+        alarm = reminders.add("alarm", reminders.due_time(in_minutes=1), kind="alarm")
+        ringer.ring("alarm", alarm_id=alarm.id)
+        announcer.user_said("Snooze")
+        await asyncio.sleep(0.01)
+        assert not ringer.ringing and "snoozed until" in llm.notes[-1]
+        assert [r.kind for r in reminders.upcoming()] == ["alarm", "alarm"]
+        ringer.ring("timer")
+        announcer.user_said("Snooze")  # a timer: snoozing just stops it
+        await asyncio.sleep(0.01)
+        assert not ringer.ringing and "has already been stopped" in llm.notes[-1]
+        ringer.ring("timer")
+        announcer.user_said("Okay, stop")
+        await asyncio.sleep(0.01)
+        assert not ringer.ringing and "has already been stopped" in llm.notes[-1]
+
+    asyncio.run(main())

@@ -122,3 +122,10 @@ def test_time_zone_is_ours_not_the_computers():
     assert "UTC+08:00" in config.home_text()
     with pytest.raises(ConfigError):
         load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_TIMEZONE": "Mars/Olympus"})
+
+
+def test_wayne_manor_is_off_unless_set():
+    assert load_config({"OPENAI_API_KEY": "sk-test"}).wayne_manor_url is None
+    url = "http://127.0.0.1:8765/mcp"
+    config = load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_WAYNE_MANOR_URL": f" {url} "})
+    assert config.wayne_manor_url == url

@@ -7,6 +7,8 @@
   straight to the job. GPT-Live sometimes said "I'll pass that along" without doing it;
   this doesn't rely on it. Anything else you say first leaves the answer to GPT-Live.
 - Each conversation starts knowing your recent jobs, so "what happened?" isn't a blank.
+- While a timer or alarm rings, "stop" or "snooze" works at once, without the round trip
+  through GPT-Live.
 """
 
 import re
@@ -15,9 +17,11 @@ import time
 from loguru import logger
 from pipecat.services.openai.live import events as live_events
 
+from alfred.chat import Chat
 from alfred.db import Database, Question, Reminder, Task
 from alfred.questions import Questions
 from alfred.reminders import Reminders
+from alfred.ringer import Ringer
 from alfred.tasks import TaskRunner
 
 QUICK_ANSWER_WINDOW = 120  # seconds after Alfred asks in which a bare yes or no counts
@@ -27,6 +31,45 @@ YES_WORDS = {"yes", "yeah", "yep", "yup", "sure", "approved", "absolutely", "cer
 YES_PHRASES = ("go ahead", "send it", "do it")
 NO_WORDS = {"no", "nope", "cancel", "don't", "dont", "nah"}
 UNSURE_WORDS = {"but", "wait", "not", "change", "instead", "actually", "maybe", "hold", "what"}
+STOP_WORDS = {"stop", "off", "dismiss", "enough", "quiet", "awake", "up", "cancel"}
+# Words a short "stop" or "snooze" may come with. Anything else ("turn off the LIGHTS")
+# means it's about something else, so GPT-Live handles it.
+RINGING_EXTRAS = {
+    "it",
+    "that",
+    "this",
+    "the",
+    "alarm",
+    "timer",
+    "please",
+    "thanks",
+    "thank",
+    "you",
+    "i'm",
+    "im",
+    "turn",
+    "now",
+    "all",
+    "right",
+    "alright",
+    "sir",
+    "alfred",
+    "just",
+    "could",
+    "can",
+    "ringing",
+    "beeping",
+}
+
+
+def quick_ringing_answer(said: str) -> str | None:
+    """'snooze', 'stop', or None, for a short reply while something rings."""
+    words = set(re.findall(r"[a-z']+", said.lower().replace("’", "'"))) - FILLER
+    if not words or words - STOP_WORDS - RINGING_EXTRAS - {"snooze"}:
+        return None
+    if "snooze" in words:
+        return "snooze"
+    return "stop" if words & STOP_WORDS else None
 
 
 def quick_answer(said: str) -> str | None:
@@ -45,18 +88,28 @@ def quick_answer(said: str) -> str | None:
 
 class Announcer:
     def __init__(
-        self, llm, db: Database, tasks: TaskRunner, questions: Questions, reminders: Reminders
+        self,
+        llm,
+        db: Database,
+        tasks: TaskRunner,
+        questions: Questions,
+        reminders: Reminders,
+        ringer: Ringer | None = None,
+        chat: Chat | None = None,
     ):
         self._llm, self._db, self._tasks, self._questions = llm, db, tasks, questions
-        self._reminders = reminders
+        self._reminders, self._ringer, self._chat = reminders, ringer, chat
         self.session_open = False
         self.closing = False  # the session is ending: anything new waits for the next one
         self._asked: tuple[Question, float] | None = None  # the last approval Alfred asked
+        self.on_tell: list = []  # called when GPT-Live is given news to say (promises.py)
 
     def start(self) -> None:
         self._tasks.on_finished.append(self._job_finished)
         self._questions.on_asked.append(self._job_asked)
         self._reminders.on_due.append(self._reminder_due)
+        if self._chat:
+            self._chat.on_done.append(self._say)
         self._expect_answer()  # to a question the opening message asks
 
     def closing_now(self) -> None:
@@ -67,10 +120,15 @@ class Announcer:
         self._tasks.on_finished.remove(self._job_finished)
         self._questions.on_asked.remove(self._job_asked)
         self._reminders.on_due.remove(self._reminder_due)
+        if self._chat:
+            self._chat.on_done.remove(self._say)
 
     def user_said(self, text: str) -> None:
-        """Called with each thing you say. Only your next reply after Alfred asks counts:
-        if it is a clear yes or no, it goes straight to the waiting job."""
+        """Called with each thing you say. While something rings, "stop" or "snooze" acts
+        at once. Otherwise only your next reply after Alfred asks counts: if it is a clear
+        yes or no, it goes straight to the waiting job."""
+        if self._ringer and self._ringer.ringing and self._answer_ringing(text):
+            return
         if not self._asked:
             return
         question, asked_at = self._asked
@@ -88,6 +146,26 @@ class Announcer:
                 'two ("Very good."); the outcome is announced when it\'s ready.'
             )
 
+    def _answer_ringing(self, text: str) -> bool:
+        answer = quick_ringing_answer(text)
+        alarm_id = self._ringer.alarm_id
+        if answer is None:
+            return False
+        if alarm_id is None:
+            answer = "stop"  # a timer: "snooze" just stops it
+        self._ringer.stop()
+        if answer == "snooze":
+            again = self._reminders.snooze(alarm_id)
+            done = f"snoozed until {self._reminders.spoken(again.due_at)}"
+        else:
+            done = "stopped"
+        self._ringer.answered(done)
+        self._tell(
+            f"The ringing has already been {done}. Don't hand this to your backend; just "
+            "acknowledge it in a few words."
+        )
+        return True
+
     def _job_finished(self, task: Task) -> None:
         if self.session_open and not self.closing and task.status != "stopped":
             self._db.mark_told([task.id])
@@ -96,10 +174,7 @@ class Announcer:
     def _reminder_due(self, reminder: Reminder) -> None:
         if self.session_open and not self.closing:
             self._reminders.mark_said([reminder.id])
-            self._tell(
-                f"A reminder the user set has just gone off: {reminder.text}. Tell the user "
-                f'now, briefly ("Your reminder: ..."). {SPEAKING_RULES}'
-            )
+            self._tell(f"{due_note(reminder, self._reminders)} {SPEAKING_RULES}")
 
     def _job_asked(self, question: Question) -> None:
         if not self.session_open or self.closing:
@@ -115,8 +190,15 @@ class Announcer:
         only_one = len(waiting) == 1 and waiting[0].kind == "approve"
         self._asked = (waiting[0], time.monotonic()) if only_one else None
 
+    def _say(self, note: str) -> None:
+        """How a chat message went, if the conversation is still going."""
+        if self.session_open and not self.closing:
+            self._tell(note)
+
     def _tell(self, note: str) -> None:
         """GPT-Live says this now, without being asked."""
+        for listener in self.on_tell:
+            listener()
         event = live_events.SessionCommentaryAppendEvent(delegation_id=None, content=note)
         self._llm.create_task(self._llm.send_client_event(event), "announce")
 
@@ -178,7 +260,9 @@ def opening_messages(
     parts = ["Before anything else, tell the user briefly."]
     if due:
         parts.append(f"{_count(len(due), 'reminder')} the user set went off:")
-        parts += [f"- {_when_it_went_off(r.due_at, reminders)}: {r.text}" for r in due]
+        parts += [
+            f"- {_when_it_went_off(r.due_at, reminders)}: {due_note(r, reminders)}" for r in due
+        ]
     if finished:
         parts.append(f"{_count(len(finished), 'background job')} finished since you last spoke:")
         parts += [f"- {t.status}: {t.request[:150]}. Result: {t.result}" for t in finished]
@@ -191,6 +275,22 @@ def opening_messages(
         parts += [f"- (job {q.task_id}) {q.text}" for q in waiting]
     parts.append(SPEAKING_RULES)
     return [{"role": "developer", "content": "\n".join(parts)}], told, [r.id for r in due]
+
+
+def due_note(reminder: Reminder, reminders: Reminders) -> str:
+    """What GPT-Live is told when a reminder, timer or alarm goes off."""
+    if reminder.kind == "timer":
+        return (
+            f"The user's {reminder.text} timer is done and beeping. Tell them now, briefly; "
+            'they can say "stop".'
+        )
+    if reminder.kind == "alarm":
+        return (
+            f"The user's alarm for {reminders.spoken(reminder.due_at)} is ringing. Greet them "
+            'briefly with the time ("Good morning, sir, it\'s half past six."); they can say '
+            '"stop" or "snooze".'
+        )
+    return f'A reminder the user set went off: {reminder.text}. Tell them ("Your reminder: …").'
 
 
 def _when_it_went_off(due_at: float, reminders: Reminders) -> str:

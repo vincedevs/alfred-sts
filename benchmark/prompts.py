@@ -1,5 +1,5 @@
 """The benchmark's prompts: Alfred's real prompts (prompts/*.md), minus the sections about
-features switched off for benchmarking (background jobs, memory, reminders).
+features switched off for benchmarking (background jobs, memory, reminders, the house).
 
 They are trimmed when loaded, never copied, so any later edit to Alfred's prompts reaches
 the benchmark too. tests/test_benchmark.py checks that only these sections differ.
@@ -10,11 +10,20 @@ from alfred.config import load_prompt
 # Sections ("## Heading" to the next "## ") left out in benchmark mode.
 LEFT_OUT = {
     "voice": ["Things you are told to say"],  # announcements from jobs and reminders
-    "router": ["Background jobs", "Memory", "Reminders"],  # tools that aren't there
+    # tools not there
+    "router": [
+        "Background jobs",
+        "The house",
+        "Messages",
+        "Memory",
+        "Reminders",
+        "Timers and alarms",
+    ],
 }
 THIS_SESSION = (
     "\n\n## In this session\n"
-    "You have web search only: background jobs, memory and reminders are switched off. "
+    "You have web search only: background jobs, memory, reminders, timers, alarms, "
+    "messages and the house are switched off. "
     "If the user asks for one, say briefly that it isn't available right now."
 )
 

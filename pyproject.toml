@@ -8,6 +8,7 @@ requires-python = ">=3.12"
 dependencies = [
     "pipecat-ai[openai]>=1.14.0,<2",  # voice pipeline + GPT-Live service
     "claude-agent-sdk>=0.2.170,<0.3",  # background jobs (bundles the Claude Code CLI)
+    "mcp>=2.3,<3",                    # Wayne Manor, the virtual smart home (house.py)
     "livekit>=1.1.21,<2",             # only for its WebRTC echo canceller (no server)
     "sounddevice>=0.5",               # microphone and speaker
     "onnxruntime>=1.20",              # runs the wake-word models

@@ -13,6 +13,13 @@ chime, then just talk. You can interrupt him at any time.
   talked about and asked him to find.
 - **Reminders:** "Remind me in 10 minutes to stretch", "every weekday at 8, brief me on
   the weather". Alfred speaks up when they're due, without "Hey Alfred".
+- **Timers and alarms:** "a pasta timer for 8 minutes", "wake me at 6:30 on weekdays".
+  They ring until you say "stop" (or "snooze"), and alarms ring even if Alfred isn't running.
+- **Google Chat:** "tell the family chat I'm on my way". Alfred reads the message back and
+  sends it only after you say yes.
+- **The house:** with Wayne Manor running, Alfred controls its lights, temperature,
+  telephone and Spotify: "turn the lights blue", "play some Glenn Miller", "turn it down",
+  "make a call".
 
 ## What it sounds like
 
@@ -23,8 +30,11 @@ chime, then just talk. You can interrupt him at any time.
 | Single soft tick | Alfred will stop listening in 5 seconds unless you speak |
 | Low two-note sound | Alfred has stopped listening: say "Hey Alfred" next time |
 | Two short low beeps | Alfred couldn't connect: check the internet connection |
+| Three quick high beeps, repeating | A timer is done: say "stop" |
+| Rising four-note chime, repeating | An alarm: say "stop" or "snooze" (9 minutes) |
 
-Alfred stops listening after about 25 seconds of quiet. While a job is still working or
+Alfred stops listening after about 25 seconds of quiet. Speech he doesn't answer, such as
+music with vocals or a TV, doesn't count, so he still goes to sleep when it's playing. While a job is still working or
 waiting for your answer, he stays with you for up to 2 minutes.
 
 ## Things to try
@@ -37,6 +47,9 @@ waiting for your answer, he stays with you for up to 2 minutes.
 - "Remember that I'm vegetarian." "What do you know about me?" "Forget my address."
 - "What did you find about ramen yesterday?"
 - "Remind me at 3 pm to call Mum." "What reminders do I have?" "Cancel that reminder."
+- "Set a timer for 10 minutes." "How long is left?" "Add 5 minutes." "Stop."
+- "Wake me at 6:30 every weekday." "Snooze." "Cancel my alarm."
+- "Tell the family chat I'll be home by seven."
 
 Notes, charts and anything else Alfred makes are saved in `~/.alfred/workspace`.
 
@@ -51,17 +64,60 @@ Notes, charts and anything else Alfred makes are saved in `~/.alfred/workspace`.
 - **Quiet hours** (10 pm to 7 am by default): Alfred doesn't start talking on his own, and
   job results and questions wait until you next speak to him. Your reminders still go off.
 
+## Timers and alarms
+
+- A timer beeps for up to 30 seconds, an alarm rings for up to 2 minutes, until you say
+  "stop" (or "snooze" for an alarm). The sound pauses while Alfred is speaking.
+- **Alarms don't depend on Alfred.** Each one is also handed to the computer itself
+  (launchd on a Mac, systemd on the Raspberry Pi). If Alfred has stopped or crashed, the
+  computer plays the alarm a minute late; when Alfred is running he rings it himself and
+  the computer stays silent. The computer has to be on and awake, and on a Mac you need to
+  be logged in.
+- Timers only run while Alfred does.
+
+## Google Chat
+
+Alfred can post to Google Chat spaces through their incoming webhooks. In Google Chat,
+open the space, then **Apps & integrations → Webhooks → Add webhook**, and copy the
+address. Add one line per space to `.env`, named after how you'll say it:
+
+```
+ALFRED_GOOGLE_CHAT_DEFAULT=https://chat.googleapis.com/v1/spaces/...
+ALFRED_GOOGLE_CHAT_FAMILY=https://chat.googleapis.com/v1/spaces/...
+```
+
+"Tell the family chat…" uses `FAMILY`; with no space named, Alfred uses `DEFAULT` (or the
+only one). He always reads the message back first, and nothing is sent unless you say yes
+within a minute. Messages appear as posted by the webhook's app, not by you. Treat these
+addresses like passwords: anyone with one can post to that space.
+
+## Wayne Manor (the house)
+
+Wayne Manor, a separate project, is a virtual smart home with its own 3D page. Start it,
+then point Alfred at it in `.env`:
+
+```
+ALFRED_WAYNE_MANOR_URL=http://127.0.0.1:8765/mcp
+```
+
+Alfred connects at the start of each conversation; if Wayne Manor isn't running, he
+carries on without it and says he can't reach the house. House commands take a few
+seconds, like a web look-up. Music plays in Spotify on the Mac running Wayne Manor: if
+that's also Alfred's speaker, keep the volume moderate so he doesn't hear the music as
+speech. "Make a call" uses the house's telephone; Alfred can't place real phone calls.
+
 ## Staying in control
 
 - **You approve anything that leaves the house.** Before sending an email, Alfred reads out
   the recipient, the subject and how the email begins, and waits for your "yes". Anything
-  but a clear yes is a no, and no answer within 5 minutes is a no.
+  but a clear yes is a no, and no answer within 5 minutes is a no. Google Chat messages
+  are read back the same way (no answer within a minute is a no).
 - **Alfred asks rather than guesses** when a request is unclear.
 - **Background jobs work in their own folder.** They can't read your personal folders,
   your passwords or Alfred's settings, can't make payments or unlock anything, and can't
   install software on your computer without asking.
 - **Every action is recorded.** `~/.alfred/audit.jsonl` lists everything a job did or
-  tried to do, and what happened.
+  tried to do, and what happened, including every Google Chat message.
 - **Stopping:** say "stop that job" at any time. Ctrl+C stops Alfred; unfinished jobs carry
   on when you start him again.
 
@@ -106,6 +162,8 @@ most likely to change:
 | `ALFRED_QUIET_HOURS` | When Alfred stays quiet unless a reminder is due, e.g. `22-7`, or `off` |
 | `ALFRED_HOME`, `ALFRED_UNITS`, `ALFRED_CURRENCY` | Where you are: Alfred assumes this place, `metric` or `imperial` units, and this currency unless you say otherwise |
 | `ALFRED_TIMEZONE` | Your time zone (`Asia/Manila`), used for reminders and quiet hours whatever the computer is set to |
+| `ALFRED_GOOGLE_CHAT_<NAME>` | A Google Chat space's webhook address, one line per space (see Google Chat) |
+| `ALFRED_WAYNE_MANOR_URL` | Wayne Manor's address, e.g. `http://127.0.0.1:8765/mcp`. Empty: no house |
 | `ALFRED_INPUT_DEVICE`, `ALFRED_OUTPUT_DEVICE` | Which microphone and speaker to use (list them with `uv run python -m sounddevice`) |
 | `ALFRED_TASK_BUDGET_USD` | The most one background job may cost |
 
@@ -119,7 +177,7 @@ and Claude account dashboards.
 
 Your voice goes to OpenAI while Alfred is listening, and background jobs run on Claude.
 Nothing is sent before you say "Hey Alfred", except when Alfred speaks up himself to ask
-you something. After each conversation, its transcript goes to Claude once, to note anything worth
+you something, and messages you approve go to Google Chat. After each conversation, its transcript goes to Claude once, to note anything worth
 remembering; his memory keeps only those notes. Everything Alfred keeps (what he knows
 about you, conversation summaries, jobs, reminders, the action record and saved files)
 stays in `~/.alfred` on your computer. The detailed logs in `logs/` also record what was

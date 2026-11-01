@@ -2,7 +2,7 @@
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-SECRET_SETTINGS = ("openai_api_key", "email_app_password")  # never logged
+# never logged (Google Chat webhook addresses carry their own key and token)
+SECRET_SETTINGS = ("openai_api_key", "email_app_password", "google_chat_spaces")
+GOOGLE_CHAT_PREFIX = "ALFRED_GOOGLE_CHAT_"  # ALFRED_GOOGLE_CHAT_FAMILY=<webhook> -> "family"
 
 
 class ConfigError(Exception):
@@ -47,6 +49,11 @@ class Config:
     # Every time Alfred works with (reminders, quiet hours, "now") is in this time zone,
     # whatever the computer is set to: a new Raspberry Pi starts on UTC.
     timezone: str = "Asia/Manila"
+    # Wayne Manor, the virtual smart home (house.py), e.g. http://127.0.0.1:8765/mcp.
+    # None: no house.
+    wayne_manor_url: str | None = None
+    # Google Chat spaces Alfred can message: name -> incoming webhook address (chat.py).
+    google_chat_spaces: dict[str, str] = field(default_factory=dict)
 
     @property
     def database_path(self) -> Path:
@@ -133,6 +140,8 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         units=_choice(env, "ALFRED_UNITS", defaults.units, ("metric", "imperial")),
         currency=env.get("ALFRED_CURRENCY") or defaults.currency,
         timezone=_timezone(env.get("ALFRED_TIMEZONE") or defaults.timezone),
+        wayne_manor_url=(env.get("ALFRED_WAYNE_MANOR_URL") or "").strip() or None,
+        google_chat_spaces=_chat_spaces(env),
     )
 
 
@@ -163,6 +172,20 @@ def _on_off(env: Mapping[str, str], name: str, default: bool) -> bool:
     if raw in ("off", "false", "no", "0"):
         return False
     raise ConfigError(f"{name} must be on or off, got {raw!r}.")
+
+
+def _chat_spaces(env: Mapping[str, str]) -> dict[str, str]:
+    """Every ALFRED_GOOGLE_CHAT_<NAME>=<webhook>: the space "<name>" (underscores as spaces)."""
+    spaces = {}
+    for key, value in env.items():
+        if key.startswith(GOOGLE_CHAT_PREFIX) and value.strip():
+            name = key.removeprefix(GOOGLE_CHAT_PREFIX).lower().replace("_", " ")
+            if not value.strip().startswith("https://chat.googleapis.com/"):
+                raise ConfigError(
+                    f"{key} must be a Google Chat webhook (https://chat.googleapis.com/...)."
+                )
+            spaces[name] = value.strip()
+    return spaces
 
 
 def _timezone(name: str) -> str:

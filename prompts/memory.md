@@ -13,6 +13,9 @@ new_facts: lasting facts about the user that are not already known, each a short
 - Leave out: anything true of nearly everyone ("has a mother", "likes good food"), one-off
   requests, today's plans, moods, things Alfred said, anything already known, anything you
   are unsure of.
+- Leave out lines that aren't the user talking to Alfred: song lyrics, a TV or video,
+  other people nearby (speech recognition writes them down as the user too). Alfred
+  doesn't answer those, and they say nothing about the user.
 - Passwords, card numbers, codes and anything that looks like a secret are never kept.
 - Most conversations have no new facts: then use [].
 

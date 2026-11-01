@@ -1,10 +1,14 @@
 """When a conversation closes. GPT-Live bills for every open second, silence included.
 
-After about `idle_seconds` of quiet a soft warning tone plays; if nobody speaks within
+What counts is Alfred: his speaking, his tool calls, his looking something up. Speech he
+never answers (a song's lyrics, a TV, people nearby) doesn't keep him awake. After about
+`idle_seconds` without him, a soft warning tone plays; if nobody speaks within
 WARNING_SECONDS, the session closes (and __main__.py plays the sleep sound). While a job
-is running or waiting for your answer, Alfred stays open longer, up to KEEP_OPEN_SECONDS
-of quiet, so you hear the result or the question.
+is running or waiting for your answer, or a timer or alarm rings, Alfred stays open longer,
+up to KEEP_OPEN_SECONDS, so you hear the result or the question, or can say "stop".
 
+Speaking after the warning holds the session open, once per quiet stretch, until Alfred
+answers: he has ANSWER_SECONDS after you finish (RESCUE_SECONDS at most), or it closes.
 During the warning, our own microphone check (audio_log.py) also counts: it hears you a
 moment before GPT-Live reports you speaking, which matters right at the deadline.
 """
@@ -18,6 +22,8 @@ from pipecat.frames.frames import EndFrame
 WARNING_SECONDS = 5  # the warning tone plays this long before closing
 KEEP_OPEN_SECONDS = 120  # most quiet time while a job is busy
 TONE_SECONDS = 1.0  # the tone and its echo in the room aren't you speaking
+ANSWER_SECONDS = 5  # after the warning, Alfred must answer this soon after you finish
+RESCUE_SECONDS = 20  # and speech he doesn't answer holds it open this long at most
 LISTEN_EVERY = 0.05
 
 
@@ -37,7 +43,9 @@ class QuietTimer:
         self._quiet_since: float | None = None  # when the current quiet stretch began
         self._closing_soon: asyncio.Task | None = None  # set once the warning has played
         self._closing = False  # too late: the session is closing
-        self._mic_saved_us = False  # the microphone check kept it open once already
+        self._rescued_at: float | None = None  # you spoke after the warning (once per stretch)
+        self._answer_by = 0.0  # ...and Alfred must answer by then
+        self._you_are_mid_sentence = False  # between your turn starting and ending
 
     def listen(self, worker, user_turns) -> None:
         """Hook into Pipecat: its quiet reports, and the moment you start speaking (not
@@ -49,36 +57,74 @@ class QuietTimer:
 
         @user_turns.event_handler("on_user_turn_started")
         async def on_user_started(_aggregator, _strategy):
-            self.activity()
+            self.you_started()
 
     async def on_idle(self) -> None:
-        """Pipecat calls this after every `check_every` seconds with nobody speaking."""
+        """Pipecat calls this after every `check_every` seconds without Alfred."""
         if self._closing_soon:
             return
         now = time.monotonic()
         self._quiet_since = self._quiet_since or now - self._interval
         quiet = now - self._quiet_since
         if self._is_busy() and quiet < KEEP_OPEN_SECONDS:
-            logger.info(f"Quiet for {quiet:.0f} s, but a job is busy: staying open")
+            logger.info(
+                f"Quiet for {quiet:.0f} s, but a job is busy or something rings: staying open"
+            )
             return
         logger.info(f"Quiet for {quiet:.0f} s: warning tone, closing in {WARNING_SECONDS} s")
         self._engine.play(self._warning_sound)
-        self._closing_soon = asyncio.create_task(self._close_after_warning())
+        if self._you_are_mid_sentence:  # a long sentence, or background talk: let it end
+            self._hold_for_answer()
+        else:
+            self._closing_soon = asyncio.create_task(self._close_after_warning())
 
     def activity(self) -> None:
-        """Someone spoke: start counting quiet again, and don't close."""
+        """Alfred spoke or got to work: start counting quiet again, and don't close."""
         self._quiet_since = None
-        self._mic_saved_us = False
+        self._rescued_at = None
         if self._closing:
-            logger.info("Speech came just after the session started closing")
+            logger.info("Alfred answered just after the session started closing")
         elif self._closing_soon:
-            logger.info("Speech after the warning: staying open")
+            logger.info("Alfred answered: staying open")
             self.stop()
+
+    def you_started(self) -> None:
+        """You began speaking. Only matters after the warning: it holds the session open
+        while Alfred answers."""
+        self._you_are_mid_sentence = True
+        if self._rescued_at is not None and not self._closing:  # GPT-Live heard you too
+            self._answer_by = max(self._answer_by, self._rescued_at + RESCUE_SECONDS)
+        elif self._closing_soon and not self._closing:
+            logger.info("Speech after the warning: waiting for Alfred to answer")
+            self.stop()
+            self._hold_for_answer()
+
+    def you_said(self) -> None:
+        """You finished speaking: if that was after the warning, Alfred has
+        ANSWER_SECONDS to answer it."""
+        self._you_are_mid_sentence = False
+        if self._rescued_at is not None:
+            limit = self._rescued_at + RESCUE_SECONDS
+            self._answer_by = min(limit, time.monotonic() + ANSWER_SECONDS)
 
     def stop(self) -> None:
         if self._closing_soon:
             self._closing_soon.cancel()
             self._closing_soon = None
+
+    def _hold_for_answer(self, heard_by_mic_only: bool = False) -> None:
+        """Wait for Alfred to answer. Something only our microphone check heard gets
+        ANSWER_SECONDS: if it's speech, GPT-Live reports it well within that."""
+        self._rescued_at = time.monotonic()
+        wait = ANSWER_SECONDS if heard_by_mic_only else RESCUE_SECONDS
+        self._answer_by = self._rescued_at + wait
+        self._closing_soon = asyncio.create_task(self._close_unless_answered())
+
+    async def _close_unless_answered(self) -> None:
+        while time.monotonic() < self._answer_by:
+            await asyncio.sleep(LISTEN_EVERY)
+        logger.info("Alfred didn't answer what was heard (background audio?): closing")
+        await self._close()
 
     async def _close_after_warning(self) -> None:
         started = time.monotonic()
@@ -89,15 +135,17 @@ class QuietTimer:
                 continue
             mic_went_quiet = mic_went_quiet or not self._engine.activity.mic.on
             if mic_went_quiet and self._you_are_speaking():
-                logger.info("Voice on the microphone after the warning: staying open")
-                self._mic_saved_us = True  # once per quiet stretch, so a TV can't keep it open
-                self._closing_soon = None
+                logger.info("Voice on the microphone after the warning: waiting for Alfred")
+                self._hold_for_answer(heard_by_mic_only=True)  # replaces this task
                 return
         logger.info("No speech after the warning, closing the session")
+        await self._close()
+
+    async def _close(self) -> None:
         self._closing = True
         self._on_closing()
         await self._worker.queue_frame(EndFrame())  # lets GPT-Live finish and close cleanly
 
     def _you_are_speaking(self) -> bool:
         sound = self._engine.activity
-        return not self._mic_saved_us and sound.mic.on and not sound.speaker.on
+        return self._rescued_at is None and sound.mic.on and not sound.speaker.on

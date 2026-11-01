@@ -1,5 +1,5 @@
 """What the router (GPT-6 Luna) can do besides web search: background jobs (start,
-check, answer, stop), memory (remember, recall, forget) and reminders (set, list, cancel).
+check, answer, stop), memory (remember, recall, forget), and reminders, timers and alarms.
 
 Each tool is a plain async function. Pipecat reads its name, docstring and arguments
 to describe it to the model, and runs it here when the model calls it.
@@ -10,7 +10,8 @@ from pipecat.services.llm_service import FunctionCallParams
 from alfred.db import Database, Reminder, Task
 from alfred.memory import Memory
 from alfred.questions import Questions
-from alfred.reminders import Reminders
+from alfred.reminders import SNOOZE_MINUTES, Reminders
+from alfred.ringer import Ringer
 from alfred.tasks import TaskRunner
 
 QUICK_ANSWER_SECONDS = 12  # a job done within this is answered straight away
@@ -123,7 +124,7 @@ def memory_tools(memory: Memory) -> list:
     return [remember, recall, forget]
 
 
-def reminder_tools(reminders: Reminders) -> list:
+def reminder_tools(reminders: Reminders, ringer: Ringer | None = None) -> list:
     async def set_reminder(
         params: FunctionCallParams,
         text: str,
@@ -151,29 +152,124 @@ def reminder_tools(reminders: Reminders) -> list:
         await params.result_callback(_describe_reminder(reminder, reminders))
 
     async def list_reminders(params: FunctionCallParams):
-        """List the reminders still to come."""
+        """List the reminders, timers and alarms still to come, with the time left on
+        timers ("how long is left on the pasta timer?")."""
         upcoming = [_describe_reminder(r, reminders) for r in reminders.upcoming()]
         await params.result_callback({"reminders": upcoming})
 
     async def cancel_reminder(params: FunctionCallParams, reminder_id: int):
-        """Cancel a reminder (find its id with list_reminders).
+        """Cancel a reminder, timer or alarm (find its id with list_reminders).
 
         Args:
-            reminder_id: The reminder to cancel.
+            reminder_id: The one to cancel.
         """
         await params.result_callback({"cancelled": reminders.cancel(reminder_id)})
 
-    return [set_reminder, list_reminders, cancel_reminder]
+    return [set_reminder, list_reminders, cancel_reminder] + timer_and_alarm_tools(
+        reminders, ringer
+    )
+
+
+def timer_and_alarm_tools(reminders: Reminders, ringer: Ringer | None) -> list:
+    async def set_timer(params: FunctionCallParams, minutes: float, name: str = "timer"):
+        """Start a timer. When it's done it beeps and Alfred says so.
+
+        Args:
+            minutes: How long, in minutes (e.g. 0.5 for 30 seconds).
+            name: What it's for, if the user said ("pasta"), else "timer".
+        """
+        await _add(params, reminders, name, in_minutes=minutes, kind="timer")
+
+    async def set_alarm(
+        params: FunctionCallParams, at: str = "", in_minutes: float = 0, repeat: str = "none"
+    ):
+        """Set an alarm. It rings until the user says stop or snooze, and it rings even
+        during quiet hours. Give `at` for a clock time, or `in_minutes` for "in 30
+        seconds" / "in 2 minutes".
+
+        Args:
+            at: Local date and time as "YYYY-MM-DD HH:MM" (24-hour).
+            in_minutes: How soon, in minutes (0.5 for 30 seconds).
+            repeat: "none", "daily", "weekdays" or "weekly" (with `at`).
+        """
+        when = {"at": at} if at else {"in_minutes": in_minutes}
+        await _add(params, reminders, "alarm", **when, repeat=repeat, kind="alarm")
+
+    async def add_to_timer(params: FunctionCallParams, reminder_id: int, minutes: float):
+        """Add minutes to a running timer (find its id with list_reminders).
+
+        Args:
+            reminder_id: The timer.
+            minutes: How many minutes to add.
+        """
+        timer = reminders.extend(reminder_id, minutes)
+        found = _describe_reminder(timer, reminders) if timer else {"error": "no such timer"}
+        await params.result_callback(found)
+
+    async def stop_ringing(params: FunctionCallParams):
+        """Stop a timer or alarm that's ringing ("stop", "I'm up", "turn it off")."""
+        if ringer and ringer.stop():
+            ringer.answered("stopped")
+            await params.result_callback({"stopped": True})
+        elif already := ringer and ringer.just_answered():
+            await params.result_callback(_already(already))
+        else:
+            await params.result_callback({"stopped": False, "note": "Nothing is ringing."})
+
+    async def snooze_alarm(params: FunctionCallParams, minutes: float = SNOOZE_MINUTES):
+        """Snooze the alarm that's ringing: it rings again in a few minutes.
+
+        Args:
+            minutes: How long to snooze (9 unless the user said otherwise).
+        """
+        alarm_id = ringer.alarm_id if ringer and ringer.ringing else None
+        if alarm_id is None and ringer and ringer.stop():  # a timer: timers don't snooze
+            ringer.answered("stopped")
+            await params.result_callback({"stopped": True, "note": "It was a timer: stopped."})
+            return
+        if alarm_id is None:
+            already = ringer and ringer.just_answered()
+            await params.result_callback(
+                _already(already) if already else {"error": "no alarm is ringing"}
+            )
+            return
+        ringer.stop()
+        again = reminders.snooze(alarm_id, minutes)
+        ringer.answered(f"snoozed until {reminders.spoken(again.due_at)}")
+        await params.result_callback(_describe_reminder(again, reminders))
+
+    return [set_timer, set_alarm, add_to_timer, stop_ringing, snooze_alarm]
+
+
+def _already(done: str) -> dict:
+    """The ringing was already stopped or snoozed a moment ago (announcer.py)."""
+    return {"already": done, "note": "Already done. Don't say it again or contradict it."}
+
+
+async def _add(params, reminders: Reminders, text: str, **when_and_kind) -> None:
+    kind = when_and_kind.pop("kind")
+    repeat = when_and_kind.pop("repeat", "none")
+    try:
+        due = reminders.due_time(**when_and_kind)
+        added = reminders.add(text, due, repeat, kind=kind)
+    except ValueError as error:
+        await params.result_callback({"error": str(error)})
+        return
+    await params.result_callback(_describe_reminder(added, reminders))
 
 
 def _describe_reminder(reminder: Reminder, reminders: Reminders) -> dict:
-    return {
+    described = {
         "reminder_id": reminder.id,
+        "kind": reminder.kind,
         "text": reminder.text,
         "when": reminders.spoken(reminder.due_at),
         "repeat": reminder.repeat,
         "runs_a_job": reminder.run_job,
     }
+    if reminder.kind == "timer":
+        described["left"] = reminders.left(reminder)
+    return described
 
 
 def _describe(task: Task) -> dict:

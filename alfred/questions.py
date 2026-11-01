@@ -32,8 +32,12 @@ class Questions:
         self.new_question = asyncio.Event()  # __main__.py wakes Alfred up with this
         db.expire_waiting_questions()  # from before a restart: nobody is waiting for those
 
-    async def ask(self, task_id: int, kind: str, text: str) -> str | None:
-        """kind: "approve" (yes or no) or "clarify" (any answer). None if nobody answered."""
+    async def ask(
+        self, task_id: int, kind: str, text: str, timeout: float | None = None
+    ) -> str | None:
+        """kind: "approve" (yes or no) or "clarify" (any answer). None if nobody answered
+        within `timeout` seconds (QUESTION_TIMEOUT unless given)."""
+        timeout = timeout or self._timeout
         question = self._db.add_question(task_id, kind, text)
         answer = asyncio.get_running_loop().create_future()
         self._waiting[question.id] = answer
@@ -42,9 +46,9 @@ class Questions:
         for listener in list(self.on_asked):
             listener(question)
         try:
-            return await asyncio.wait_for(answer, self._timeout)
+            return await asyncio.wait_for(answer, timeout)
         except TimeoutError:
-            logger.info(f"Task {task_id}: no answer within {self._timeout:.0f} s")
+            logger.info(f"Task {task_id}: no answer within {timeout:.0f} s")
             self._db.close_question(question.id, "expired")
             return None
         finally:

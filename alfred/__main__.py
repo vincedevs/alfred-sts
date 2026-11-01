@@ -20,9 +20,10 @@ import sys
 
 from loguru import logger
 
-from alfred.audio import AudioEngine, load_sound
+from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.config import PROJECT_ROOT, Config, ConfigError, load_config
 from alfred.logs import setup_logging
+from alfred.ringer import Ringer
 from alfred.services import Services
 from alfred.tasks import TaskRunner
 from alfred.voice import run_conversation
@@ -45,6 +46,7 @@ async def run(config: Config) -> None:
             engine.play(done_sound)
 
     services = Services.start(config, on_job_finished=chime)
+    services.ringer = start_ringer(engine, services)
     handle_shutdown_signals(services.tasks)
     background = {asyncio.create_task(services.reminders.run(), name="reminders")}
     try:
@@ -77,6 +79,21 @@ async def run(config: Config) -> None:
         await services.tasks.close()  # unfinished jobs stay recorded and resume next start
         services.db.close()
         engine.close()
+
+
+def start_ringer(engine: AudioEngine, services: Services) -> Ringer:
+    """Timers beep and alarms ring when they go off, until you say stop (ringer.py)."""
+    sounds = PROJECT_ROOT / "sounds"
+    ringer = Ringer(
+        engine, load_sound(sounds / "timer_done.wav"), load_sound(sounds / "alarm.wav"), SAMPLE_RATE
+    )
+
+    def ring(reminder) -> None:
+        if reminder.kind in ("timer", "alarm"):
+            ringer.ring(reminder.kind, alarm_id=reminder.id)
+
+    services.reminders.on_due.append(ring)
+    return ringer
 
 
 def handle_shutdown_signals(tasks: TaskRunner) -> None:

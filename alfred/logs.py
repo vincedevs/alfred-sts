@@ -2,6 +2,7 @@
 full DEBUG log to logs/alfred-<date>-<time>.log. Logs older than KEEP_DAYS are deleted
 at startup: they record what was said, and an always-on Alfred would fill the disk."""
 
+import logging
 import os
 import platform
 import sys
@@ -24,6 +25,7 @@ def setup_logging(config: Config) -> None:
     logger.add(sys.stderr, level=config.log_level)
     logger.add(log_file, level="DEBUG", backtrace=True, diagnose=False)
     logger.info(f"Logging everything to {log_file.relative_to(PROJECT_ROOT)}")
+    capture_library_logs("mcp")  # the house connection (house.py): why it drops, if it does
     if removed:
         logger.debug(f"Deleted {removed} log(s) older than {KEEP_DAYS} days")
 
@@ -33,6 +35,7 @@ def setup_logging(config: Config) -> None:
         + ", ".join(f"{name} {version(name)}" for name in packages)
     )
     settings = {k: v for k, v in vars(config).items() if k not in SECRET_SETTINGS}
+    settings["google_chat_spaces"] = sorted(config.google_chat_spaces)  # names only
     logger.debug(f"Settings: {settings}")
 
     # Claude signs in with one of these (never logged): see .env.example.
@@ -42,6 +45,20 @@ def setup_logging(config: Config) -> None:
         logger.info("Claude jobs: using your Claude plan (CLAUDE_CODE_OAUTH_TOKEN)")
     else:
         logger.warning("No Claude sign-in in .env: background jobs will fail")
+
+
+def capture_library_logs(name: str) -> None:
+    """Send a library's own (standard `logging`) messages to our log as well."""
+
+    class ToLoguru(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            level = record.levelname if record.levelno >= logging.INFO else "DEBUG"
+            logger.opt(exception=record.exc_info).log(level, f"[{name}] {record.getMessage()}")
+
+    library = logging.getLogger(name)
+    library.handlers = [ToLoguru()]
+    library.setLevel(logging.DEBUG)
+    library.propagate = False
 
 
 def delete_old_logs() -> int:
