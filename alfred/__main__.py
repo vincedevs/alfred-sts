@@ -13,7 +13,6 @@ Logging is set up in logs.py; everything long-lived is built in services.py.
 """
 
 import asyncio
-import fcntl
 import os
 import signal
 import sys
@@ -22,6 +21,7 @@ from loguru import logger
 
 from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.config import PROJECT_ROOT, Config, ConfigError, load_config
+from alfred.lock import only_one_alfred
 from alfred.logs import setup_logging
 from alfred.ringer import Ringer
 from alfred.services import Services
@@ -155,18 +155,6 @@ async def wait_for_wake_word(engine: AudioEngine, detector: WakeWordDetector) ->
             last_logged = score
 
 
-def only_one_alfred(config: Config):
-    """Two Alfreds would fight over the microphone and the database (say, the Pi's service
-    and a manual `uv run alfred`). The lock is released when the process ends."""
-    config.data_dir.mkdir(parents=True, exist_ok=True)
-    lock = open(config.data_dir / "alfred.lock", "w")  # held open until Alfred exits
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        sys.exit("Alfred is already running (stop the other one first).")
-    return lock
-
-
 def main() -> None:
     # `uv run alfred` sets VIRTUAL_ENV to Alfred's own environment. Jobs' commands inherit
     # it, which confuses uv in the workspace; Alfred itself doesn't need it once running.
@@ -176,7 +164,9 @@ def main() -> None:
     except ConfigError as error:
         sys.exit(f"Config error: {error}")
 
-    _lock = only_one_alfred(config)  # kept for as long as Alfred runs
+    _lock = only_one_alfred(config.data_dir)  # kept for as long as Alfred runs (lock.py)
+    if _lock is None:
+        sys.exit("Alfred is already running (stop the other one first).")
     setup_logging(config)
     try:
         asyncio.run(run(config))

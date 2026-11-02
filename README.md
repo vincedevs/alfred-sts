@@ -206,6 +206,21 @@ about you, conversation summaries, jobs, reminders, the action record and saved 
 stays in `~/.alfred` on your computer. The detailed logs in `logs/` also record what was
 said; delete them whenever you like.
 
+## Starting fresh
+
+Stop Alfred first (Ctrl+C, or `systemctl --user stop alfred` on the Pi), then:
+
+```bash
+uv run alfred-reset            # everything he keeps: files, memory, jobs, reminders, logs
+uv run alfred-reset files      # only files jobs made (notes, code, web pages)
+uv run alfred-reset web        # only the shared web pages
+uv run alfred-reset profile    # only what he knows about you
+uv run alfred-reset logs       # only the logs
+```
+
+It lists what it will delete and asks first (add `--yes` to skip the question). Your
+settings (`.env`) and the code are never touched.
+
 ## Troubleshooting
 
 Every run writes a detailed log to `logs/alfred-<date>-<time>.log`; logs older than two

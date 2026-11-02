@@ -234,6 +234,8 @@ def background(services: Services) -> tuple[str, str]:
     what Alfred knows about you, and recent jobs, so a conversation doesn't start blank."""
     now = f"\n\n## Now\n{services.config.now():%A %d %B %Y, %I:%M %p} (the user's local time)."
     about = services.config.home_text() + services.memory.profile_text()
+    if services.web:
+        about += services.web.address_text()
     return now + about + recent_jobs_context(services.db), now + about
 
 

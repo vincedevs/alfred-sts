@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 alfred = "alfred.__main__:main"
+alfred-reset = "alfred.reset:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.12"]

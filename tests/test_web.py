@@ -41,6 +41,7 @@ def test_serves_pages_and_nothing_else(tmp_path):
         assert fetch(web, "/sneaky.txt")[0] == 404  # links out of www/ are refused
         assert fetch(web, "/../secret.txt")[0] == 404
         assert fetch(web, "/%2e%2e/secret.txt")[0] == 404
+        assert f":{web.port}/" in web.address_text()
     finally:
         web.stop()
 

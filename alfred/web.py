@@ -40,14 +40,24 @@ class WebShare:
         self._server = ThreadingHTTPServer(("0.0.0.0", port), handler)
         self._thread = threading.Thread(target=self._server.serve_forever, name="web", daemon=True)
         self.address = address(port)
+        self.ip_address = f"http://{lan_ip()}:{self.port}/"
 
     def start(self) -> None:
         self._thread.start()
-        logger.info(f"Sharing web pages at {self.address} (also http://{lan_ip()}:{self.port}/)")
+        logger.info(f"Sharing web pages at {self.address} (also {self.ip_address})")
 
     @property
     def port(self) -> int:
         return self._server.server_address[1]
+
+    def address_text(self) -> str:
+        """For Alfred's instructions, so "what's your address?" gets a real answer (jobs
+        can't tell: their sandbox has its own network)."""
+        return (
+            f"\n\n## Your web address\nWeb pages and games you make are shared on the "
+            f"user's home network at {self.address} (or {self.ip_address}). If asked for your "
+            "address or IP, give these yourself; a background job can't find them."
+        )
 
     def stop(self) -> None:
         self._server.shutdown()

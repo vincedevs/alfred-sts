@@ -14,6 +14,9 @@ def test_promises_and_claims_are_recognised():
         "I’ve set a timer for ten minutes.",  # curly apostrophe, as GPT-Live writes it
         "All sorted.",
         "That's done.",
+        "Certainly, sir; switching them off now.",
+        "Of course. Turning them on now.",
+        "Very good. Putting you through.",
     )
     for text in said:
         assert is_promise(text), text
@@ -25,6 +28,8 @@ def test_promises_and_claims_are_recognised():
         "Why did the ghost go into the bar? For the boos, sir.",
         "Thirty seconds are up, sir.",
         "Not in the way people do.",
+        "Still on with that, just a moment, sir.",
+        "Thank you for waiting.",
     )
     for text in harmless:
         assert not is_promise(text), text

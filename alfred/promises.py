@@ -25,7 +25,11 @@ PROMISE = re.compile(
     # "I've turned…", "they're blue now", "it's now playing", "that's done"
     r"|\bi['’]ve\s+(?!been\b|got\b|no\b|never\b|heard\b)\w+"
     r"|\b(is|are|['’]re|['’]s)\s+(now\s+\w+|\w+\s+now)\b"
-    r"|\b(that['’]s|it['’]s|all)\s+(done|set|sorted|sent|stopped|cancelled|canceled)\b",
+    r"|\b(that['’]s|it['’]s|all)\s+(done|set|sorted|sent|stopped|cancelled|canceled)\b"
+    # "switching them off now", "turning them on now", "putting you through"
+    r"|\b(switching|turning|putting|playing|setting|sending|starting|stopping|changing|"
+    r"dimming|pausing|skipping|ringing|calling|cancelling|canceling|adding)\b"
+    r"[^.?!]{0,40}?\b(now|through|on|off|up|down)\b",
     re.IGNORECASE,
 )
 
