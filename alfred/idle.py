@@ -29,7 +29,7 @@ TONE_SECONDS = 1.0  # the tone and its echo in the room aren't you speaking
 ANSWER_SECONDS = 5  # after the warning, Alfred must answer this soon after you finish
 RESCUE_SECONDS = 20  # and speech he doesn't answer holds it open this long at most
 LISTEN_EVERY = 0.05
-GOODBYE_STARTS_WITHIN = 2.5  # told to sleep and Alfred is quiet: wait this long for a goodbye
+GOODBYE_STARTS_WITHIN = 1.5  # told to sleep and Alfred is quiet: wait this long for a goodbye
 GOODBYE_PAUSE = 0.4  # this much quiet after the goodbye means it's over
 GOODBYE_AT_MOST = 10.0  # close by then even if Alfred is still talking
 
@@ -119,14 +119,15 @@ class QuietTimer:
             limit = self._rescued_at + RESCUE_SECONDS
             self._answer_by = min(limit, time.monotonic() + ANSWER_SECONDS)
 
-    def sleep_after_goodbye(self) -> None:
-        """You told Alfred to sleep: close once he has said goodbye, without the tone."""
+    def sleep_after_goodbye(self, said_goodnight: bool = False) -> None:
+        """You told Alfred to sleep: close once he has said goodbye (said_goodnight: he
+        just has), without the tone."""
         if self._closing or self._going_to_sleep:
             return
         logger.info("Told to go to sleep: closing after Alfred's goodbye")
         self.stop()
         self._going_to_sleep = True
-        self._closing_soon = asyncio.create_task(self._close_after_goodbye())
+        self._closing_soon = asyncio.create_task(self._close_after_goodbye(said_goodnight))
 
     def stop(self) -> None:
         if self._closing_soon:
@@ -162,12 +163,12 @@ class QuietTimer:
         logger.info("No speech after the warning, closing the session")
         await self._close()
 
-    async def _close_after_goodbye(self) -> None:
+    async def _close_after_goodbye(self, said_goodnight: bool) -> None:
         """Alfred is often already saying goodnight when your words are transcribed, so
         the goodbye is what he is saying now; if he is quiet, it's whatever he says next."""
         speaker = self._engine.activity.speaker
         started = time.monotonic()
-        heard, quiet_since = speaker.on, None
+        heard, quiet_since = speaker.on or said_goodnight, None
         while time.monotonic() - started < GOODBYE_AT_MOST:
             await asyncio.sleep(LISTEN_EVERY)
             now = time.monotonic()

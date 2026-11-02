@@ -1,31 +1,28 @@
 """What Alfred says when you wake him, and how you send him to sleep.
 
 Waking: "Hey Alfred" on its own gets a short greeting ("Yes, sir?"). "Hey Alfred, what
-time is it?" doesn't: he just answers. Which one it was is decided by our own microphone
-check (audio_log.py) in the moments after the wake word, while the GPT-Live session opens.
-The wake chime's faint echo lingers on the mic, so only clear speech counts.
+time is it?" doesn't: he just answers. Speech after the wake word is held back until the
+GPT-Live session opens, then sent; if GPT-Live hears you start speaking soon after, it was
+a request. Its speech detection is used rather than our own microphone check, which the
+wake chime's echo and the Pi's noisier microphone both fooled.
 
 Sleeping: "Alfred, go to sleep" is recognised here, from what you said, not by a model:
-GPT-Live said "Goodnight, sir." but often didn't hand the request on. It counts only when
-the whole sentence is the command ("sleep right now", "I said go to sleep"), so "remind me
-to go to sleep at 11" is left alone. Alfred says goodnight and the session closes as soon
-as he's done (idle.py). Jobs keep running, timers and
-alarms still ring, waiting questions are asked next time, and "Hey Alfred" wakes him.
+GPT-Live said "Goodnight, sir." but often didn't hand the request on. It counts when the
+whole sentence is the command ("sleep right now", "I said go to sleep"), so "remind me to
+go to sleep at 11" is left alone; or when you mentioned sleep and Alfred answered with
+nothing but a goodnight. Alfred says goodnight and the session closes as soon as he's done
+(idle.py). Jobs keep running, timers and alarms still ring, waiting questions are asked
+next time, and "Hey Alfred" wakes him.
 """
 
 import asyncio
 import re
-import time
 
 from loguru import logger
 
 from alfred.announcer import FILLER, quick_answer
 
-SKIP_SECONDS = 0.4  # the end of "Hey Alfred" itself, still on the microphone
-LISTEN_SECONDS = 1.5  # speech this soon after the wake word is a request
-CHIME_SETTLE = 0.35  # the wake chime has been quiet this long
-SPEECH_DBFS = -50.0  # the chime's echo measured -54 to -58; speech -29 to -45
-LISTEN_EVERY = 0.05
+LISTEN_SECONDS = 1.0  # after the session opens: speech GPT-Live hears by then is a request
 
 GREETING = (
     "The user just said your name and nothing else. Greet them in two or three words, in "
@@ -33,62 +30,63 @@ GREETING = (
 )
 
 # The only words a sleep command may have besides "sleep": "go to sleep", "sleep right
-# now", "Alfred, you can go back to sleep", "I told you to sleep", "time to sleep, sir".
+# now", "Alfred, you may go back to sleep", "I told you to sleep", "time to sleep, sir".
 # Any other word ("remind me…", "are you going…", "don't…", "couldn't") means it's not one.
 SLEEP_COMMAND_WORDS = {
     "sleep", "go", "back", "to", "now", "right", "please", "just", "alfred", "sir", "you",
-    "can", "could", "should", "i", "said", "told", "time", "it's", "its", "is", "then",
-    "already", "alright", "all", "hey", "mode",
+    "can", "could", "may", "should", "i", "said", "told", "time", "it's", "its", "is",
+    "then", "already", "alright", "all", "hey", "mode",
 }  # fmt: skip
 OFFER = re.compile(r"\bgo to sleep\b.*\?")  # Alfred asked "Shall I go to sleep?"
+ONLY_GOODNIGHT = re.compile(r"^\W*good ?night\W*(sir\W*)?$")  # "Goodnight, sir."
 
 
-async def kept_talking(activity) -> bool:
-    """Started right after the wake word: did the user go on speaking ("Hey Alfred, do
-    X")? Only clear speech once the wake chime has died away counts."""
-    started = time.monotonic()
-    speaker_quiet_since = started
-    await asyncio.sleep(SKIP_SECONDS)
-    while time.monotonic() - started < LISTEN_SECONDS:
-        now = time.monotonic()
-        mic = activity.mic
-        if activity.speaker.on:
-            speaker_quiet_since = now
-        elif mic.on and mic.level >= SPEECH_DBFS and now - speaker_quiet_since >= CHIME_SETTLE:
-            return True
-        await asyncio.sleep(LISTEN_EVERY)
-    return False
-
-
-async def greet_unless_asked(kept_talking_check: asyncio.Task, tell) -> None:
-    """Once the session is open: greet, unless a request followed the wake word."""
-    if await kept_talking_check:
+async def greet_unless_asked(user_spoke: asyncio.Event, tell) -> None:
+    """Once the session is open: greet, unless GPT-Live hears the user speaking."""
+    try:
+        await asyncio.wait_for(user_spoke.wait(), LISTEN_SECONDS)
         logger.info("A request followed the wake word: no greeting")
-        return
-    logger.info("Only the wake word: greeting")
-    tell(GREETING)
+    except TimeoutError:
+        logger.info("Only the wake word: greeting")
+        tell(GREETING)
+
+
+def words_of(said: str) -> set[str]:
+    return set(re.findall(r"[a-z']+", said.lower().replace("’", "'"))) - FILLER
 
 
 def asks_to_sleep(said: str) -> bool:
     """An explicit request to sleep, and nothing else. Not "thanks", "goodnight", "don't
     go to sleep", "are you going to sleep?" or "remind me to go to sleep at 11"."""
-    words = set(re.findall(r"[a-z']+", said.lower().replace("’", "'"))) - FILLER
+    words = words_of(said)
     return "sleep" in words and words <= SLEEP_COMMAND_WORDS
 
 
 class SleepCommand:
-    """Watches the conversation for "go to sleep" (or a yes after Alfred offers it) and
-    then calls go_to_sleep()."""
+    """Watches the conversation for "go to sleep" and calls go_to_sleep(said_goodnight).
+    Also: a yes after Alfred offers to sleep, and a bare goodnight from Alfred after you
+    mentioned sleep (GPT-Live understood a wording this module doesn't)."""
 
     def __init__(self, go_to_sleep):
         self._go_to_sleep = go_to_sleep
         self._offered = False
-
-    def alfred_said(self, text: str) -> None:
-        self._offered = bool(OFFER.search(text.lower()))
+        self._mentioned_sleep = False
+        self._asked = False  # already going to sleep
 
     def user_said(self, text: str) -> None:
         offered, self._offered = self._offered, False
+        self._mentioned_sleep = "sleep" in words_of(text)
         if asks_to_sleep(text) or (offered and quick_answer(text) == "yes"):
-            logger.info(f"Told to go to sleep: {text!r}")
-            self._go_to_sleep()
+            self._sleep(f"Told to go to sleep: {text!r}", said_goodnight=False)
+
+    def alfred_said(self, text: str) -> None:
+        self._offered = bool(OFFER.search(text.lower()))
+        if self._mentioned_sleep and ONLY_GOODNIGHT.match(text.lower()):
+            self._sleep(f"Alfred said goodnight to a sleep request: {text!r}", True)
+        self._mentioned_sleep = False
+
+    def _sleep(self, why: str, said_goodnight: bool) -> None:
+        if not self._asked:
+            self._asked = True
+            logger.info(why)
+            self._go_to_sleep(said_goodnight)

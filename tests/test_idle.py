@@ -243,3 +243,17 @@ def test_told_to_sleep_while_a_job_is_busy_still_closes(monkeypatch):
         assert fake.frames == ["cancel"]
 
     asyncio.run(main())
+
+
+def test_told_to_sleep_just_after_the_goodnight_closes_at_once(monkeypatch):
+    """Alfred already said goodnight (and his speaker is quiet): no wait for another."""
+
+    async def main():
+        fake, timer = make(monkeypatch)
+        quick_goodbye(monkeypatch)
+        monkeypatch.setattr(idle, "GOODBYE_STARTS_WITHIN", 5.0)
+        timer.sleep_after_goodbye(said_goodnight=True)
+        await asyncio.sleep(0.1)
+        assert fake.frames == ["cancel"]
+
+    asyncio.run(main())

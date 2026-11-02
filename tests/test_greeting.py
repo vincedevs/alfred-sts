@@ -1,103 +1,24 @@
-"""Greeting after "Hey Alfred" alone, and the go_to_sleep tool."""
+"""Greeting after "Hey Alfred" alone, and recognising "go to sleep"."""
 
 import asyncio
-from types import SimpleNamespace
 
 from alfred import greeting
-from alfred.greeting import GREETING, SleepCommand, asks_to_sleep, greet_unless_asked, kept_talking
+from alfred.greeting import GREETING, SleepCommand, asks_to_sleep, greet_unless_asked
 
 
-def quick(monkeypatch):
-    monkeypatch.setattr(greeting, "SKIP_SECONDS", 0.01)
-    monkeypatch.setattr(greeting, "LISTEN_SECONDS", 0.15)
-    monkeypatch.setattr(greeting, "CHIME_SETTLE", 0.05)
-    monkeypatch.setattr(greeting, "LISTEN_EVERY", 0.005)
-
-
-def sound(mic=False, speaker=False, level=-35.0):
-    return SimpleNamespace(
-        mic=SimpleNamespace(on=mic, level=level), speaker=SimpleNamespace(on=speaker)
-    )
-
-
-def test_silence_after_the_wake_word_means_no_request(monkeypatch):
-    quick(monkeypatch)
-    assert asyncio.run(kept_talking(sound())) is False
-
-
-def test_speech_after_the_wake_word_is_a_request(monkeypatch):
-    quick(monkeypatch)
-    activity = sound()
-
-    async def main():
-        check = asyncio.create_task(kept_talking(activity))
-        await asyncio.sleep(0.03)
-        activity.mic.on = True  # "...what time is it?"
-        return await check
-
-    assert asyncio.run(main()) is True
-
-
-def test_the_wake_chime_is_not_the_user(monkeypatch):
-    quick(monkeypatch)
-    assert asyncio.run(kept_talking(sound(mic=True, speaker=True))) is False
-
-
-def test_the_chimes_echo_just_after_it_ends_is_not_the_user(monkeypatch):
-    """Seen on the Mac: the mic still showed the chime's echo for a moment after it ended."""
-    quick(monkeypatch)
-    activity = sound(mic=True, speaker=True)
-
-    async def main():
-        check = asyncio.create_task(kept_talking(activity))
-        await asyncio.sleep(0.03)
-        activity.speaker.on = False  # chime over; its echo lingers briefly
-        await asyncio.sleep(0.02)
-        activity.mic.on = False
-        return await check
-
-    assert asyncio.run(main()) is False
-
-
-def test_a_faint_echo_after_the_chime_is_not_the_user(monkeypatch):
-    """Seen on the Mac: -58 dBFS on the mic for 0.5 s after the chime."""
-    quick(monkeypatch)
-    activity = sound(mic=True, speaker=True, level=-58.0)
-
-    async def main():
-        check = asyncio.create_task(kept_talking(activity))
-        await asyncio.sleep(0.03)
-        activity.speaker.on = False
-        return await check
-
-    assert asyncio.run(main()) is False
-
-
-def test_still_talking_after_the_chime_is_a_request(monkeypatch):
-    quick(monkeypatch)
-    activity = sound(mic=True, speaker=True)
-
-    async def main():
-        check = asyncio.create_task(kept_talking(activity))
-        await asyncio.sleep(0.03)
-        activity.speaker.on = False  # "Hey Alfred, what time is it?" goes on past it
-        return await check
-
-    assert asyncio.run(main()) is True
-
-
-def test_greets_only_when_nothing_followed(monkeypatch):
+def test_greets_only_when_the_user_says_nothing(monkeypatch):
+    monkeypatch.setattr(greeting, "LISTEN_SECONDS", 0.05)
     said = []
 
-    async def main(followed):
-        async def check():
-            return followed
+    async def main(user_speaks):
+        spoke = asyncio.Event()
+        if user_speaks:  # "Hey Alfred, what time is it?"
+            asyncio.get_running_loop().call_later(0.01, spoke.set)
+        await greet_unless_asked(spoke, said.append)
 
-        await greet_unless_asked(asyncio.create_task(check()), said.append)
-
-    asyncio.run(main(followed=True))
+    asyncio.run(main(user_speaks=True))
     assert said == []
-    asyncio.run(main(followed=False))
+    asyncio.run(main(user_speaks=False))
     assert said == [GREETING]
 
 
@@ -111,6 +32,7 @@ def test_explicit_requests_to_sleep():
         "I told you to sleep",
         "Sleep right now",  # seen in testing: GPT-Live said goodnight, Alfred stayed awake
         "I said go to sleep",
+        "Uh, you may go to sleep now",  # seen on the Pi
         "Okay Alfred, you can go to sleep now, sir",
     ):
         assert asks_to_sleep(said), said
@@ -135,13 +57,30 @@ def test_not_requests_to_sleep():
 
 def test_sleep_command_and_a_yes_to_the_offer():
     calls = []
-    sleep = SleepCommand(lambda: calls.append("sleep"))
+    sleep = SleepCommand(calls.append)
     sleep.user_said("I think I'm done for today")
     assert calls == []
     sleep.alfred_said("Certainly. Shall I go to sleep?")
     sleep.user_said("Yes, please")
-    assert calls == ["sleep"]
-    sleep.user_said("Yes")  # only the reply right after the offer counts
-    assert calls == ["sleep"]
+    assert calls == [False]  # his goodnight is still to come
     sleep.user_said("Go to sleep")
-    assert calls == ["sleep", "sleep"]
+    assert calls == [False]  # once is enough
+
+
+def test_a_bare_goodnight_after_a_sleep_wording_we_missed():
+    calls = []
+    sleep = SleepCommand(calls.append)
+    sleep.user_said("Off to sleep with you, Alfred")  # not in our word list
+    assert calls == []
+    sleep.alfred_said("Goodnight, sir.")
+    assert calls == [True]  # he has just said it
+
+
+def test_a_goodnight_without_sleep_mentioned_changes_nothing():
+    calls = []
+    sleep = SleepCommand(calls.append)
+    sleep.user_said("Goodnight")
+    sleep.alfred_said("Goodnight, sir.")
+    sleep.user_said("Remind me to go to sleep at one a.m.")
+    sleep.alfred_said("I'll remind you at one a.m. to go to sleep.")
+    assert calls == []

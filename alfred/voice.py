@@ -82,23 +82,23 @@ NO_CREDITS = ("no credits remaining", "insufficient_quota", "exceeded your curre
 
 
 async def run_conversation(
-    engine: AudioEngine, services: Services, after_wake: asyncio.Task | None = None
+    engine: AudioEngine, services: Services, woken: bool = False
 ) -> list[str] | None:
     """Talk until nobody has spoken for a while. Returns what was said, line by line, or
     None if the session never opened (no internet, OpenAI unreachable, no credits).
-    after_wake: woken by "Hey Alfred", this tells whether a request followed it
-    (greeting.kept_talking); None when Alfred speaks up by himself."""
+    woken: by "Hey Alfred" (then he may greet you), not speaking up by himself."""
     house_tools = await wayne_manor_tools(services.config)
-    return await Conversation(engine, services, house_tools, after_wake).run()
+    return await Conversation(engine, services, house_tools, woken).run()
 
 
 class Conversation:
     """One conversation: GPT-Live's pipeline, and what listens to it: announcer.py (news
     and quick answers), idle.py (when to close) and promises.py (hand-offs)."""
 
-    def __init__(self, engine: AudioEngine, services: Services, house_tools: list, after_wake=None):
+    def __init__(self, engine: AudioEngine, services: Services, house_tools: list, woken=False):
         s = self.services = services
-        self._after_wake = after_wake
+        self._woken = woken
+        self._user_spoke = asyncio.Event()  # GPT-Live heard the user start speaking
         self.transcript: list[str] = []
         self.lookups = 0  # hand-offs to the router, billed separately from the voice
         self._looked_up_at = -1e9
@@ -140,6 +140,7 @@ class Conversation:
         # who listens to what
         self.announcer.on_tell.append(self.promises.handed_off)
         self.timer.listen(self.worker, user_turns)
+        user_turns.add_event_handler("on_user_turn_started", self._user_started)
         self.llm.add_event_handler("on_session_started", self._session_started)
         log_conversation(self.llm, user_turns, alfred_turns, self._line, self._looked_up)
 
@@ -191,9 +192,12 @@ class Conversation:
         self.services.reminders.mark_said(self._said_reminders)
         logger.info("Listening (GPT-Live session open)")
         self.transport.mic_input.start_forwarding()
-        if self._after_wake and not self._has_news:
-            greeting = greet_unless_asked(self._after_wake, self.announcer.tell)
+        if self._woken and not self._has_news:
+            greeting = greet_unless_asked(self._user_spoke, self.announcer.tell)
             self.llm.create_task(greeting, "greet")
+
+    async def _user_started(self, _aggregator, _strategy) -> None:
+        self._user_spoke.set()
 
     def _line(self, who: str, text: str) -> None:
         """Each thing said. Only Alfred answering keeps him awake (idle.py)."""
