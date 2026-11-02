@@ -72,3 +72,19 @@ def test_a_hand_off_before_or_after_is_fine(monkeypatch):
         assert llm.notes == []
 
     asyncio.run(main())
+
+
+def test_the_reminder_says_where_an_answer_to_a_job_goes(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(promises_module, "GRACE_SECONDS", 0.02)
+
+    async def main():
+        llm = FakeLLM()
+        question = SimpleNamespace(task_id=3, text="What email address should I send it to?")
+        check = PromiseCheck(llm, waiting=lambda: [question])
+        check.alfred_said("Very good. I'll have it sent there.")
+        await asyncio.sleep(0.05)
+        assert "job 3" in llm.notes[0] and "What email address" in llm.notes[0]
+
+    asyncio.run(main())

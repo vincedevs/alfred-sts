@@ -35,8 +35,10 @@ def is_promise(text: str) -> bool:
 
 
 class PromiseCheck:
-    def __init__(self, llm):
-        self._llm = llm
+    def __init__(self, llm, waiting=lambda: []):
+        """waiting(): the questions jobs are waiting on (questions.py), so the reminder
+        can say where an answer the user just gave should go."""
+        self._llm, self._waiting = llm, waiting
         self._handed_off_at = -1e9  # when GPT-Live last handed something to its backend
         self._reminded_at = -1e9
 
@@ -65,5 +67,12 @@ class PromiseCheck:
             "so nothing has happened. Hand it to your backend now. Don't apologise or "
             "explain; if it needs a word, just say you're on it."
         )
+        if waiting := self._waiting():
+            question = waiting[0]
+            note += (
+                f' A background job is waiting for the user\'s answer to: "{question.text}". '
+                "If what the user said answers it, hand their exact answer to your backend "
+                f"for job {question.task_id}."
+            )
         event = live_events.SessionCommentaryAppendEvent(delegation_id=None, content=note)
         await self._llm.send_client_event(event)

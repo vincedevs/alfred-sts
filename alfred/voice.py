@@ -67,6 +67,12 @@ LOGGED_FRAMES = (
 
 WEB_SEARCH = {"type": "web_search"}  # hosted by OpenAI, runs on their side
 VOICE_PER_MINUTE = 0.05  # GPT-Live's price in dollars, billed per second
+NO_HOUSE = (
+    "\n\n## The house right now\nThe house (Wayne Manor: lights, temperature, telephone, "
+    "music) isn't connected in this conversation. If asked for any of it, say briefly that "
+    "you can't reach the house right now. Don't hand it to a background job: jobs can't "
+    "reach the house either."
+)
 LOOKUP_SECONDS = 30  # a look-up gets this long to come back before quiet counts
 # How OpenAI says the account has no credits left (then nothing works until you add some)
 NO_CREDITS = ("no credits remaining", "insufficient_quota", "exceeded your current quota")
@@ -88,7 +94,11 @@ class Conversation:
         self.transcript: list[str] = []
         self.lookups = 0  # hand-offs to the router, billed separately from the voice
         self._looked_up_at = -1e9
-        self.llm = create_gpt_live(s.config, *background(s))
+        voice_extra, router_extra = background(s)
+        if not house_tools:  # say so at once, instead of trying a job that can't reach it
+            voice_extra += NO_HOUSE
+            router_extra += NO_HOUSE
+        self.llm = create_gpt_live(s.config, voice_extra, router_extra)
         opening, self._told_jobs, self._said_reminders = opening_messages(
             s.db, s.questions, s.reminders
         )
@@ -110,7 +120,8 @@ class Conversation:
         self.announcer = Announcer(
             self.llm, s.db, s.tasks, s.questions, s.reminders, s.ringer, s.chat
         )
-        self.promises = PromiseCheck(self.llm)  # "I'll put that on" must be followed by a hand-off
+        # "I'll put that on" must be followed by a hand-off (promises.py)
+        self.promises = PromiseCheck(self.llm, waiting=s.questions.waiting)
         self.timer = quiet_timer(self.worker, engine, s, self.announcer, self._looking_up)
         self.out_of_credits = end_if_out_of_credits(self.worker)
         # who listens to what
