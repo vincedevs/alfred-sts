@@ -52,6 +52,7 @@ class Config:
     # Wayne Manor, the virtual smart home (house.py), e.g. http://127.0.0.1:8765/mcp.
     # None: no house.
     wayne_manor_url: str | None = None
+    web_port: int | None = None  # share jobs' web pages on the home network (web.py); None: off
     # Google Chat spaces Alfred can message: name -> incoming webhook address (chat.py).
     google_chat_spaces: dict[str, str] = field(default_factory=dict, repr=False)
 
@@ -141,6 +142,7 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         currency=env.get("ALFRED_CURRENCY") or defaults.currency,
         timezone=_timezone(env.get("ALFRED_TIMEZONE") or defaults.timezone),
         wayne_manor_url=(env.get("ALFRED_WAYNE_MANOR_URL") or "").strip() or None,
+        web_port=_port(env.get("ALFRED_WEB_PORT")),
         google_chat_spaces=_chat_spaces(env),
     )
 
@@ -218,6 +220,15 @@ def _hours(raw: str | None, default: tuple[int, int] | None) -> tuple[int, int] 
     if not (0 <= start <= 23 and 0 <= end <= 23):
         raise ConfigError(f"ALFRED_QUIET_HOURS hours must be 0 to 23, got {raw!r}.")
     return start, end
+
+
+def _port(raw: str | None) -> int | None:
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    if not raw.isdigit() or not 1024 <= int(raw) <= 65535:
+        raise ConfigError(f"ALFRED_WEB_PORT must be a port number from 1024 to 65535, got {raw!r}.")
+    return int(raw)
 
 
 def _device(raw: str | None) -> int | str | None:

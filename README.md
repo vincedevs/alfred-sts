@@ -20,6 +20,7 @@ chime, then just talk. You can interrupt him at any time.
 - **The house:** with Wayne Manor running, Alfred controls its lights, temperature,
   telephone and Spotify: "turn the lights blue", "play some Glenn Miller", "turn it down",
   "make a call".
+- **Web pages and games:** "make me a Flappy Bird game", then play it on your phone.
 
 ## What it sounds like
 
@@ -90,6 +91,27 @@ ALFRED_GOOGLE_CHAT_FAMILY=https://chat.googleapis.com/v1/spaces/...
 only one). He always reads the message back first, and nothing is sent unless you say yes
 within a minute. Messages appear as posted by the webhook's app, not by you. Treat these
 addresses like passwords: anyone with one can post to that space.
+
+## Web pages, games and small tools
+
+Alfred can make things you open in a browser: "make me a Flappy Bird game", "a loan
+calculator for a 2-million-peso house", "a chart of the peso against the dollar this year".
+Turn it on in `.env`:
+
+```
+ALFRED_WEB_PORT=8080
+```
+
+When it's ready, Alfred tells you the address, such as `http://raspy.local:8080/flappy-bird/`.
+Open it on any phone or laptop on the same Wi-Fi; `http://raspy.local:8080/` lists
+everything he has made. They're saved in `~/.alfred/workspace/www/`.
+
+- Only that folder is shared, read-only. Anyone on your Wi-Fi can open it, so keep it for
+  home use.
+- Pages run in the browser: games, calculators, lists, charts and slides work; anything
+  that needs a program running on the computer (a database, a chat server) doesn't.
+- Not quite right? "Make the bird fall slower" edits it; reload the page.
+- On a Mac, allow incoming connections the first time macOS asks.
 
 ## Wayne Manor (the house)
 
@@ -163,6 +185,7 @@ most likely to change:
 | `ALFRED_HOME`, `ALFRED_UNITS`, `ALFRED_CURRENCY` | Where you are: Alfred assumes this place, `metric` or `imperial` units, and this currency unless you say otherwise |
 | `ALFRED_TIMEZONE` | Your time zone (`Asia/Manila`), used for reminders and quiet hours whatever the computer is set to |
 | `ALFRED_GOOGLE_CHAT_<NAME>` | A Google Chat space's webhook address, one line per space (see Google Chat) |
+| `ALFRED_WEB_PORT` | Share web pages Alfred makes on your home network, e.g. `8080`. Empty: off |
 | `ALFRED_WAYNE_MANOR_URL` | Wayne Manor's address, e.g. `http://127.0.0.1:8765/mcp`. Empty: no house |
 | `ALFRED_INPUT_DEVICE`, `ALFRED_OUTPUT_DEVICE` | Which microphone and speaker to use (list them with `uv run python -m sounddevice`) |
 | `ALFRED_TASK_BUDGET_USD` | The most one background job may cost |

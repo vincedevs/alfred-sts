@@ -77,6 +77,8 @@ async def run(config: Config) -> None:
         for job in background:
             job.cancel()
         await services.tasks.close()  # unfinished jobs stay recorded and resume next start
+        if services.web:
+            services.web.stop()
         services.db.close()
         engine.close()
 
