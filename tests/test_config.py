@@ -129,3 +129,15 @@ def test_wayne_manor_is_off_unless_set():
     url = "http://127.0.0.1:8765/mcp"
     config = load_config({"OPENAI_API_KEY": "sk-test", "ALFRED_WAYNE_MANOR_URL": f" {url} "})
     assert config.wayne_manor_url == url
+
+
+def test_secrets_never_show_when_config_is_printed():
+    config = load_config(
+        {
+            "OPENAI_API_KEY": "sk-secret-123",
+            "ALFRED_EMAIL_APP_PASSWORD": "abcdefghijklmnop",
+            "ALFRED_GOOGLE_CHAT_FAMILY": "https://chat.googleapis.com/v1/spaces/X?key=K&token=T",
+        }
+    )
+    shown = repr(config)
+    assert "sk-secret-123" not in shown and "abcdefghijklmnop" not in shown and "key=K" not in shown

@@ -23,7 +23,7 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class Config:
-    openai_api_key: str
+    openai_api_key: str = field(repr=False)  # secrets never appear when Config is printed
     live_model: str = "gpt-live-1"
     router_model: str = "gpt-6-luna"
     voice: str | None = None  # None lets OpenAI pick
@@ -38,7 +38,7 @@ class Config:
     agent_model: str = "claude-haiku-5-5"  # Claude model for background jobs
     task_budget_usd: float = 0.25  # a job stops if it would cost more than this
     email_address: str | None = None  # the Gmail account jobs send from
-    email_app_password: str | None = None  # a Gmail app password, never your real one
+    email_app_password: str | None = field(default=None, repr=False)  # a Gmail app password
     # Alfred doesn't start talking on his own between these hours (start, end), except for
     # reminders you set. None: no quiet hours.
     quiet_hours: tuple[int, int] | None = (22, 7)
@@ -53,7 +53,7 @@ class Config:
     # None: no house.
     wayne_manor_url: str | None = None
     # Google Chat spaces Alfred can message: name -> incoming webhook address (chat.py).
-    google_chat_spaces: dict[str, str] = field(default_factory=dict)
+    google_chat_spaces: dict[str, str] = field(default_factory=dict, repr=False)
 
     @property
     def database_path(self) -> Path:

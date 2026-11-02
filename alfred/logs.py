@@ -22,7 +22,8 @@ def setup_logging(config: Config) -> None:
     removed = delete_old_logs()
     log_file = LOG_DIR / f"alfred-{config.now():%Y%m%d-%H%M%S}.log"
     logger.remove()
-    logger.add(sys.stderr, level=config.log_level)
+    # diagnose=False: a crash shows where it happened, never the values involved (keys)
+    logger.add(sys.stderr, level=config.log_level, diagnose=False)
     logger.add(log_file, level="DEBUG", backtrace=True, diagnose=False)
     logger.info(f"Logging everything to {log_file.relative_to(PROJECT_ROOT)}")
     capture_library_logs("mcp")  # the house connection (house.py): why it drops, if it does
