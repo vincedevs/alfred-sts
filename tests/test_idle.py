@@ -173,3 +173,51 @@ def test_music_heard_only_by_our_microphone_check_closes_soon(monkeypatch):
         assert fake.frames == ["EndFrame"]
 
     asyncio.run(main())
+
+
+def quick_goodbye(monkeypatch):
+    monkeypatch.setattr(idle, "GOODBYE_STARTS_WITHIN", 0.1)
+    monkeypatch.setattr(idle, "GOODBYE_PAUSE", 0.03)
+    monkeypatch.setattr(idle, "GOODBYE_AT_MOST", 0.5)
+
+
+def test_told_to_sleep_closes_after_the_goodbye_without_the_tone(monkeypatch):
+    async def main():
+        fake, timer = make(monkeypatch)
+        quick_goodbye(monkeypatch)
+        timer.sleep_after_goodbye()
+        fake.activity.speaker.on = True  # "Goodnight, sir."
+        timer.activity()  # his goodbye doesn't keep the session open
+        timer.you_started()  # nor does anything said now
+        await asyncio.sleep(0.15)
+        assert fake.frames == []  # still saying goodbye
+        fake.activity.speaker.on = False
+        await asyncio.sleep(0.1)
+        assert fake.frames == ["EndFrame"] and fake.closing
+        assert fake.played == []  # no warning tone
+
+    asyncio.run(main())
+
+
+def test_told_to_sleep_without_a_goodbye_still_closes(monkeypatch):
+    async def main():
+        fake, timer = make(monkeypatch)
+        quick_goodbye(monkeypatch)
+        timer.sleep_after_goodbye()
+        await asyncio.sleep(0.2)
+        assert fake.frames == ["EndFrame"]
+
+    asyncio.run(main())
+
+
+def test_told_to_sleep_while_a_job_is_busy_still_closes(monkeypatch):
+    """The job keeps running; its result is told next time."""
+
+    async def main():
+        fake, timer = make(monkeypatch, busy=True)
+        quick_goodbye(monkeypatch)
+        timer.sleep_after_goodbye()
+        await asyncio.sleep(0.2)
+        assert fake.frames == ["EndFrame"]
+
+    asyncio.run(main())

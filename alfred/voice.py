@@ -9,10 +9,12 @@ memory and reminders (tools.py), and Wayne Manor's for the house (house.py). Ope
 runs the hand-off itself ("Responses delegation"); Pipecat runs those tools here when the
 router calls them.
 
-Alfred also speaks up without being asked, about jobs and reminders (announcer.py).
+Alfred also speaks up without being asked, about jobs and reminders (announcer.py), and
+greets you if you only said his name (greeting.py).
 
 The session closes after about `idle_seconds` with nobody speaking, with a warning tone
-first; it stays open longer while a job is busy (idle.py).
+first; it stays open longer while a job is busy (idle.py). "Go to sleep" closes it at once,
+after a goodbye (greeting.py).
 """
 
 import asyncio
@@ -46,6 +48,7 @@ from alfred.announcer import Announcer, opening_messages, recent_jobs_context
 from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.chat import chat_tools
 from alfred.config import PROJECT_ROOT, Config, load_prompt
+from alfred.greeting import greet_unless_asked, sleep_tools
 from alfred.house import wayne_manor_tools
 from alfred.idle import QuietTimer, check_every
 from alfred.promises import PromiseCheck
@@ -78,19 +81,24 @@ LOOKUP_SECONDS = 30  # a look-up gets this long to come back before quiet counts
 NO_CREDITS = ("no credits remaining", "insufficient_quota", "exceeded your current quota")
 
 
-async def run_conversation(engine: AudioEngine, services: Services) -> list[str] | None:
+async def run_conversation(
+    engine: AudioEngine, services: Services, after_wake: asyncio.Task | None = None
+) -> list[str] | None:
     """Talk until nobody has spoken for a while. Returns what was said, line by line, or
-    None if the session never opened (no internet, OpenAI unreachable, no credits)."""
+    None if the session never opened (no internet, OpenAI unreachable, no credits).
+    after_wake: woken by "Hey Alfred", this tells whether a request followed it
+    (greeting.kept_talking); None when Alfred speaks up by himself."""
     house_tools = await wayne_manor_tools(services.config)
-    return await Conversation(engine, services, house_tools).run()
+    return await Conversation(engine, services, house_tools, after_wake).run()
 
 
 class Conversation:
     """One conversation: GPT-Live's pipeline, and what listens to it: announcer.py (news
     and quick answers), idle.py (when to close) and promises.py (hand-offs)."""
 
-    def __init__(self, engine: AudioEngine, services: Services, house_tools: list):
+    def __init__(self, engine: AudioEngine, services: Services, house_tools: list, after_wake=None):
         s = self.services = services
+        self._after_wake = after_wake
         self.transcript: list[str] = []
         self.lookups = 0  # hand-offs to the router, billed separately from the voice
         self._looked_up_at = -1e9
@@ -102,7 +110,9 @@ class Conversation:
         opening, self._told_jobs, self._said_reminders = opening_messages(
             s.db, s.questions, s.reminders
         )
-        context = LLMContext(messages=opening, tools=router_tools(s, house_tools))
+        self._has_news = bool(opening)  # Alfred opens with it, so no greeting
+        sleep = sleep_tools(lambda: self.timer.sleep_after_goodbye(), s.questions)
+        context = LLMContext(messages=opening, tools=router_tools(s, house_tools, sleep))
         self.transport = EngineTransport(engine)
         user_turns, alfred_turns = LLMContextAggregatorPair(context)
         self.worker = create_worker(
@@ -164,6 +174,9 @@ class Conversation:
         self.services.reminders.mark_said(self._said_reminders)
         logger.info("Listening (GPT-Live session open)")
         self.transport.mic_input.start_forwarding()
+        if self._after_wake and not self._has_news:
+            greeting = greet_unless_asked(self._after_wake, self.announcer.tell)
+            self.llm.create_task(greeting, "greet")
 
     def _line(self, who: str, text: str) -> None:
         """Each thing said. Only Alfred answering keeps him awake (idle.py)."""
@@ -239,16 +252,17 @@ def background(services: Services) -> tuple[str, str]:
     return now + about + recent_jobs_context(services.db), now + about
 
 
-def router_tools(services: Services, house_tools: list) -> ToolsSchema:
-    """The router's tools: OpenAI's web search, plus Alfred's own and the house's (run
-    here)."""
+def router_tools(services: Services, house_tools: list, sleep: list = ()) -> ToolsSchema:
+    """The router's tools: OpenAI's web search, plus Alfred's own, the house's and
+    go_to_sleep (greeting.py), all run here."""
     s = services
     own = job_tools(s.tasks, s.db, s.questions) + memory_tools(s.memory)
     return ToolsSchema(
         standard_tools=own
         + reminder_tools(s.reminders, s.ringer)
         + chat_tools(s.chat)
-        + house_tools,
+        + house_tools
+        + list(sleep),
         custom_tools={AdapterType.OPENAI: [WEB_SEARCH]},
     )
 

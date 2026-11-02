@@ -11,6 +11,9 @@ Speaking after the warning holds the session open, once per quiet stretch, until
 answers: he has ANSWER_SECONDS after you finish (RESCUE_SECONDS at most), or it closes.
 During the warning, our own microphone check (audio_log.py) also counts: it hears you a
 moment before GPT-Live reports you speaking, which matters right at the deadline.
+
+Told to go to sleep (the go_to_sleep tool, greeting.py), the session closes as soon as
+Alfred has said goodbye: no warning tone, and nothing said after it keeps it open.
 """
 
 import asyncio
@@ -25,6 +28,9 @@ TONE_SECONDS = 1.0  # the tone and its echo in the room aren't you speaking
 ANSWER_SECONDS = 5  # after the warning, Alfred must answer this soon after you finish
 RESCUE_SECONDS = 20  # and speech he doesn't answer holds it open this long at most
 LISTEN_EVERY = 0.05
+GOODBYE_STARTS_WITHIN = 4.0  # told to sleep: Alfred's goodbye should start by then
+GOODBYE_PAUSE = 0.8  # this much quiet after the goodbye means it's over
+GOODBYE_AT_MOST = 15.0  # close by then even if Alfred is still talking
 
 
 def check_every(idle_seconds: float) -> float:
@@ -46,6 +52,7 @@ class QuietTimer:
         self._rescued_at: float | None = None  # you spoke after the warning (once per stretch)
         self._answer_by = 0.0  # ...and Alfred must answer by then
         self._you_are_mid_sentence = False  # between your turn starting and ending
+        self._going_to_sleep = False  # you told Alfred to sleep
 
     def listen(self, worker, user_turns) -> None:
         """Hook into Pipecat: its quiet reports, and the moment you start speaking (not
@@ -82,6 +89,8 @@ class QuietTimer:
         """Alfred spoke or got to work: start counting quiet again, and don't close."""
         self._quiet_since = None
         self._rescued_at = None
+        if self._going_to_sleep:
+            return  # his goodbye: the session closes after it
         if self._closing:
             logger.info("Alfred answered just after the session started closing")
         elif self._closing_soon:
@@ -92,6 +101,8 @@ class QuietTimer:
         """You began speaking. Only matters after the warning: it holds the session open
         while Alfred answers."""
         self._you_are_mid_sentence = True
+        if self._going_to_sleep:
+            return
         if self._rescued_at is not None and not self._closing:  # GPT-Live heard you too
             self._answer_by = max(self._answer_by, self._rescued_at + RESCUE_SECONDS)
         elif self._closing_soon and not self._closing:
@@ -106,6 +117,15 @@ class QuietTimer:
         if self._rescued_at is not None:
             limit = self._rescued_at + RESCUE_SECONDS
             self._answer_by = min(limit, time.monotonic() + ANSWER_SECONDS)
+
+    def sleep_after_goodbye(self) -> None:
+        """You told Alfred to sleep: close once he has said goodbye, without the tone."""
+        if self._closing or self._going_to_sleep:
+            return
+        logger.info("Told to go to sleep: closing after Alfred's goodbye")
+        self.stop()
+        self._going_to_sleep = True
+        self._closing_soon = asyncio.create_task(self._close_after_goodbye())
 
     def stop(self) -> None:
         if self._closing_soon:
@@ -139,6 +159,26 @@ class QuietTimer:
                 self._hold_for_answer(heard_by_mic_only=True)  # replaces this task
                 return
         logger.info("No speech after the warning, closing the session")
+        await self._close()
+
+    async def _close_after_goodbye(self) -> None:
+        speaker = self._engine.activity.speaker
+        started = time.monotonic()
+        heard_goodbye, quiet_since = False, None
+        while True:
+            await asyncio.sleep(LISTEN_EVERY)
+            now = time.monotonic()
+            if speaker.on:
+                heard_goodbye, quiet_since = True, None
+            else:
+                quiet_since = quiet_since or now
+            if heard_goodbye and quiet_since and now - quiet_since >= GOODBYE_PAUSE:
+                break
+            if not heard_goodbye and now - started >= GOODBYE_STARTS_WITHIN:
+                logger.info("No goodbye heard: going to sleep anyway")
+                break
+            if now - started >= GOODBYE_AT_MOST:
+                break
         await self._close()
 
     async def _close(self) -> None:

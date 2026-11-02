@@ -1,8 +1,8 @@
 """Start Alfred: `uv run alfred`.
 
 The whole program is one loop:
-    listen for "Hey Alfred" -> wake sound -> talk with GPT-Live -> (idle) -> sleep sound
-    -> listen again
+    listen for "Hey Alfred" -> wake sound -> talk with GPT-Live -> (idle, or "go to sleep")
+    -> sleep sound -> listen again
 
 Background jobs (tasks.py) run alongside that loop; a soft chime plays when one finishes.
 Alfred also chimes and speaks up without the wake word when a reminder goes off, or a job
@@ -21,6 +21,7 @@ from loguru import logger
 
 from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.config import PROJECT_ROOT, Config, ConfigError, load_config
+from alfred.greeting import kept_talking
 from alfred.lock import only_one_alfred
 from alfred.logs import setup_logging
 from alfred.ringer import Ringer
@@ -53,13 +54,16 @@ async def run(config: Config) -> None:
         while True:
             logger.info('Waiting for "Hey Alfred"...')
             reason = await wait_for_wake_or_news(engine, detector, services)
+            after_wake = None
             if reason == "wake word":
                 logger.info(f"Wake word heard (score {detector.last_score:.2f})")
                 engine.play(wake_sound)  # tells you Alfred is listening
+                # "Hey Alfred" alone gets a greeting, "Hey Alfred, do X" doesn't
+                after_wake = asyncio.create_task(kept_talking(engine.activity))
             else:
                 logger.info(f"Speaking up: {reason}")
                 engine.play(done_sound)
-            transcript = await run_conversation(engine, services)
+            transcript = await run_conversation(engine, services, after_wake)
 
             # Pipecat's runner swallows the cancellation Ctrl+C sends, so pass it on.
             if asyncio.current_task().cancelling():

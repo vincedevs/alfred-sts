@@ -140,7 +140,7 @@ class Announcer:
         if answer is None or since > QUICK_ANSWER_WINDOW:
             return
         if self._questions.answer(question.task_id, answer):
-            self._tell(
+            self.tell(
                 f"The user's answer ({answer}) has already been passed on to that background "
                 "job. Do not hand it to your backend again. Acknowledge it once, in a word or "
                 'two ("Very good."); the outcome is announced when it\'s ready.'
@@ -160,7 +160,7 @@ class Announcer:
         else:
             done = "stopped"
         self._ringer.answered(done)
-        self._tell(
+        self.tell(
             f"The ringing has already been {done}. Don't hand this to your backend; just "
             "acknowledge it in a few words."
         )
@@ -169,19 +169,19 @@ class Announcer:
     def _job_finished(self, task: Task) -> None:
         if self.session_open and not self.closing and task.status != "stopped":
             self._db.mark_told([task.id])
-            self._tell(finished_job_note(task))
+            self.tell(finished_job_note(task))
 
     def _reminder_due(self, reminder: Reminder) -> None:
         if self.session_open and not self.closing:
             self._reminders.mark_said([reminder.id])
-            self._tell(f"{due_note(reminder, self._reminders)} {SPEAKING_RULES}")
+            self.tell(f"{due_note(reminder, self._reminders)} {SPEAKING_RULES}")
 
     def _job_asked(self, question: Question) -> None:
         if not self.session_open or self.closing:
             return  # left for later: Alfred speaks up once this session has closed
         self._questions.new_question.clear()  # said here, so no need to speak up later
         self._expect_answer()
-        self._tell(question_note(question))
+        self.tell(question_note(question))
 
     def _expect_answer(self) -> None:
         """The quick yes/no path is only for a single open approval: with two questions
@@ -193,9 +193,9 @@ class Announcer:
     def _say(self, note: str) -> None:
         """How a chat message went, if the conversation is still going."""
         if self.session_open and not self.closing:
-            self._tell(note)
+            self.tell(note)
 
-    def _tell(self, note: str) -> None:
+    def tell(self, note: str) -> None:
         """GPT-Live says this now, without being asked."""
         for listener in self.on_tell:
             listener()

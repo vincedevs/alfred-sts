@@ -1,7 +1,8 @@
 # Alfred
 
 A voice-only assistant with the manner of an English butler. Say **"Hey Alfred"**, hear a
-chime, then just talk. You can interrupt him at any time.
+chime, then just talk. You can interrupt him at any time. Say "Hey Alfred" on its own and
+he greets you; say "Hey Alfred, what time is it?" in one breath and he just answers.
 
 - **Questions and conversation:** Alfred answers straight away, and looks up anything
   current (weather, news, prices) on the web.
@@ -37,6 +38,10 @@ chime, then just talk. You can interrupt him at any time.
 Alfred stops listening after about 25 seconds of quiet. Speech he doesn't answer, such as
 music with vocals or a TV, doesn't count, so he still goes to sleep when it's playing. While a job is still working or
 waiting for your answer, he stays with you for up to 2 minutes.
+
+To send him to sleep straight away, tell him so: "Alfred, go to sleep" or "you can sleep
+now". He says goodnight and stops listening. "Thanks" or "goodbye" alone don't do it. Jobs
+keep running, timers and alarms still ring, and "Hey Alfred" wakes him again.
 
 ## Things to try
 
