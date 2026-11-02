@@ -28,6 +28,9 @@ class EngineTransport(BaseTransport):
             audio_in_sample_rate=SAMPLE_RATE,
             audio_out_enabled=True,
             audio_out_sample_rate=SAMPLE_RATE,
+            # Pipecat pads the end with 2 s of silence, played in real time, which delayed
+            # every close. The engine plays out whatever is queued anyway.
+            audio_out_end_silence_secs=0,
         )
         self.mic_input = _MicInput(engine, params)
         self._speaker_output = _SpeakerOutput(engine, params)

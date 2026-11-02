@@ -13,8 +13,8 @@ Alfred also speaks up without being asked, about jobs and reminders (announcer.p
 greets you if you only said his name (greeting.py).
 
 The session closes after about `idle_seconds` with nobody speaking, with a warning tone
-first; it stays open longer while a job is busy (idle.py). "Go to sleep" closes it at once,
-after a goodbye (greeting.py).
+first; it stays open longer while a job is busy (idle.py). "Go to sleep" closes it as soon
+as Alfred has said goodnight (greeting.py).
 """
 
 import asyncio
@@ -48,7 +48,7 @@ from alfred.announcer import Announcer, opening_messages, recent_jobs_context
 from alfred.audio import SAMPLE_RATE, AudioEngine, load_sound
 from alfred.chat import chat_tools
 from alfred.config import PROJECT_ROOT, Config, load_prompt
-from alfred.greeting import greet_unless_asked, sleep_tools
+from alfred.greeting import SleepCommand, greet_unless_asked
 from alfred.house import wayne_manor_tools
 from alfred.idle import QuietTimer, check_every
 from alfred.promises import PromiseCheck
@@ -111,8 +111,7 @@ class Conversation:
             s.db, s.questions, s.reminders
         )
         self._has_news = bool(opening)  # Alfred opens with it, so no greeting
-        sleep = sleep_tools(lambda: self.timer.sleep_after_goodbye(), s.questions)
-        context = LLMContext(messages=opening, tools=router_tools(s, house_tools, sleep))
+        context = LLMContext(messages=opening, tools=router_tools(s, house_tools))
         self.transport = EngineTransport(engine)
         user_turns, alfred_turns = LLMContextAggregatorPair(context)
         self.worker = create_worker(
@@ -132,8 +131,12 @@ class Conversation:
         )
         # "I'll put that on" must be followed by a hand-off (promises.py)
         self.promises = PromiseCheck(self.llm, waiting=s.questions.waiting)
-        self.timer = quiet_timer(self.worker, engine, s, self.announcer, self._looking_up)
+        self.engine = engine
+        self._sleep_sound = load_sound(PROJECT_ROOT / "sounds" / "session_end.wav")
+        self._sleep_sound_played = False
+        self.timer = quiet_timer(self.worker, engine, s, self._closing, self._looking_up)
         self.out_of_credits = end_if_out_of_credits(self.worker)
+        self.sleep = SleepCommand(self.timer.sleep_after_goodbye)  # "go to sleep"
         # who listens to what
         self.announcer.on_tell.append(self.promises.handed_off)
         self.timer.listen(self.worker, user_turns)
@@ -164,7 +167,21 @@ class Conversation:
         if not self.announcer.session_open:
             logger.warning("Couldn't open a GPT-Live session: check the internet connection")
             return None
+        if not asyncio.current_task().cancelling():  # not Ctrl+C
+            self._play_sleep_sound()  # closed some other way (connection dropped)
         return self.transcript
+
+    def _closing(self) -> None:
+        """Alfred decided to close (quiet, or told to sleep): the sleep sound plays now,
+        not after the second or two Pipecat takes to shut the session down."""
+        self.announcer.closing_now()
+        self._play_sleep_sound()
+
+    def _play_sleep_sound(self) -> None:
+        """Tells you to say "Hey Alfred" next time. Played once."""
+        if not self._sleep_sound_played:
+            self._sleep_sound_played = True
+            self.engine.play(self._sleep_sound)
 
     async def _session_started(self, _llm, _session) -> None:
         self.announcer.session_open = True
@@ -184,9 +201,11 @@ class Conversation:
         if who == "You":
             self.timer.you_said()
             self.announcer.user_said(text)
+            self.sleep.user_said(text)
         else:
             self.timer.activity()
             self.promises.alfred_said(text)
+            self.sleep.alfred_said(text)
 
     def _looked_up(self) -> None:
         """GPT-Live handed something to its backend."""
@@ -221,7 +240,7 @@ def end_if_out_of_credits(worker) -> asyncio.Event:
 
 
 def quiet_timer(
-    worker, engine: AudioEngine, services: Services, announcer, looking_up
+    worker, engine: AudioEngine, services: Services, on_closing, looking_up
 ) -> QuietTimer:
     """Closes the session when it goes quiet; stays open while a job is busy or something
     rings, so you can still say "stop" (idle.py)."""
@@ -238,7 +257,7 @@ def quiet_timer(
             or looking_up()
             or bool(s.ringer and s.ringer.ringing)
         ),
-        on_closing=announcer.closing_now,
+        on_closing=on_closing,
     )
 
 
@@ -252,17 +271,16 @@ def background(services: Services) -> tuple[str, str]:
     return now + about + recent_jobs_context(services.db), now + about
 
 
-def router_tools(services: Services, house_tools: list, sleep: list = ()) -> ToolsSchema:
-    """The router's tools: OpenAI's web search, plus Alfred's own, the house's and
-    go_to_sleep (greeting.py), all run here."""
+def router_tools(services: Services, house_tools: list) -> ToolsSchema:
+    """The router's tools: OpenAI's web search, plus Alfred's own and the house's (run
+    here)."""
     s = services
     own = job_tools(s.tasks, s.db, s.questions) + memory_tools(s.memory)
     return ToolsSchema(
         standard_tools=own
         + reminder_tools(s.reminders, s.ringer)
         + chat_tools(s.chat)
-        + house_tools
-        + list(sleep),
+        + house_tools,
         custom_tools={AdapterType.OPENAI: [WEB_SEARCH]},
     )
 

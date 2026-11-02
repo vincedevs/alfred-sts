@@ -12,8 +12,9 @@ answers: he has ANSWER_SECONDS after you finish (RESCUE_SECONDS at most), or it 
 During the warning, our own microphone check (audio_log.py) also counts: it hears you a
 moment before GPT-Live reports you speaking, which matters right at the deadline.
 
-Told to go to sleep (the go_to_sleep tool, greeting.py), the session closes as soon as
-Alfred has said goodbye: no warning tone, and nothing said after it keeps it open.
+Told to go to sleep (greeting.py), the session closes as soon as
+Alfred's goodbye ends: no warning tone, nothing said after it keeps it open, and it is
+cancelled at once rather than closed politely (that takes about a second more).
 """
 
 import asyncio
@@ -28,9 +29,9 @@ TONE_SECONDS = 1.0  # the tone and its echo in the room aren't you speaking
 ANSWER_SECONDS = 5  # after the warning, Alfred must answer this soon after you finish
 RESCUE_SECONDS = 20  # and speech he doesn't answer holds it open this long at most
 LISTEN_EVERY = 0.05
-GOODBYE_STARTS_WITHIN = 4.0  # told to sleep: Alfred's goodbye should start by then
-GOODBYE_PAUSE = 0.8  # this much quiet after the goodbye means it's over
-GOODBYE_AT_MOST = 15.0  # close by then even if Alfred is still talking
+GOODBYE_STARTS_WITHIN = 2.5  # told to sleep and Alfred is quiet: wait this long for a goodbye
+GOODBYE_PAUSE = 0.4  # this much quiet after the goodbye means it's over
+GOODBYE_AT_MOST = 10.0  # close by then even if Alfred is still talking
 
 
 def check_every(idle_seconds: float) -> float:
@@ -162,29 +163,32 @@ class QuietTimer:
         await self._close()
 
     async def _close_after_goodbye(self) -> None:
+        """Alfred is often already saying goodnight when your words are transcribed, so
+        the goodbye is what he is saying now; if he is quiet, it's whatever he says next."""
         speaker = self._engine.activity.speaker
         started = time.monotonic()
-        heard_goodbye, quiet_since = False, None
-        while True:
+        heard, quiet_since = speaker.on, None
+        while time.monotonic() - started < GOODBYE_AT_MOST:
             await asyncio.sleep(LISTEN_EVERY)
             now = time.monotonic()
             if speaker.on:
-                heard_goodbye, quiet_since = True, None
-            else:
-                quiet_since = quiet_since or now
-            if heard_goodbye and quiet_since and now - quiet_since >= GOODBYE_PAUSE:
+                heard, quiet_since = True, None
+                continue
+            quiet_since = quiet_since or now
+            if heard and now - quiet_since >= GOODBYE_PAUSE:
                 break
-            if not heard_goodbye and now - started >= GOODBYE_STARTS_WITHIN:
+            if not heard and now - started >= GOODBYE_STARTS_WITHIN:
                 logger.info("No goodbye heard: going to sleep anyway")
                 break
-            if now - started >= GOODBYE_AT_MOST:
-                break
-        await self._close()
+        await self._close(at_once=True)
 
-    async def _close(self) -> None:
+    async def _close(self, at_once: bool = False) -> None:
         self._closing = True
         self._on_closing()
-        await self._worker.queue_frame(EndFrame())  # lets GPT-Live finish and close cleanly
+        if at_once:  # told to sleep: nothing left to hear
+            await self._worker.cancel(reason="told to go to sleep")
+        else:
+            await self._worker.queue_frame(EndFrame())  # lets GPT-Live finish cleanly
 
     def _you_are_speaking(self) -> bool:
         sound = self._engine.activity

@@ -38,9 +38,11 @@ class _Activity:
     def __init__(self, name: str, threshold: float, on_text: str):
         self.name, self.threshold, self.on_text = name, threshold, on_text
         self.on = False
+        self.level = -100.0  # the latest 50 ms, in dBFS
         self._quiet_windows = 0
 
     def update(self, level: float, context: str) -> None:
+        self.level = level
         if level > self.threshold:
             self._quiet_windows = 0
             if not self.on:

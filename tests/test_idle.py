@@ -22,6 +22,9 @@ class Fake:
     async def queue_frame(self, frame):
         self.frames.append(type(frame).__name__)
 
+    async def cancel(self, reason=None):
+        self.frames.append("cancel")
+
     def waiting(self):
         return self._waiting
 
@@ -181,20 +184,39 @@ def quick_goodbye(monkeypatch):
     monkeypatch.setattr(idle, "GOODBYE_AT_MOST", 0.5)
 
 
-def test_told_to_sleep_closes_after_the_goodbye_without_the_tone(monkeypatch):
+def test_told_to_sleep_mid_goodnight_closes_when_it_ends(monkeypatch):
+    """The usual case: Alfred says goodnight while the router handles the request."""
+
     async def main():
         fake, timer = make(monkeypatch)
         quick_goodbye(monkeypatch)
-        timer.sleep_after_goodbye()
         fake.activity.speaker.on = True  # "Goodnight, sir."
+        timer.sleep_after_goodbye()
         timer.activity()  # his goodbye doesn't keep the session open
         timer.you_started()  # nor does anything said now
         await asyncio.sleep(0.15)
-        assert fake.frames == []  # still saying goodbye
+        assert fake.frames == []  # still saying goodnight
         fake.activity.speaker.on = False
         await asyncio.sleep(0.1)
-        assert fake.frames == ["EndFrame"] and fake.closing
+        assert fake.frames == ["cancel"] and fake.closing  # at once, not politely
         assert fake.played == []  # no warning tone
+
+    asyncio.run(main())
+
+
+def test_told_to_sleep_while_quiet_waits_for_the_goodnight(monkeypatch):
+    async def main():
+        fake, timer = make(monkeypatch)
+        quick_goodbye(monkeypatch)
+        monkeypatch.setattr(idle, "GOODBYE_STARTS_WITHIN", 0.3)
+        timer.sleep_after_goodbye()
+        await asyncio.sleep(0.05)
+        fake.activity.speaker.on = True  # the goodnight comes after the hand-off
+        await asyncio.sleep(0.4)
+        assert fake.frames == []
+        fake.activity.speaker.on = False
+        await asyncio.sleep(0.1)
+        assert fake.frames == ["cancel"]
 
     asyncio.run(main())
 
@@ -205,7 +227,7 @@ def test_told_to_sleep_without_a_goodbye_still_closes(monkeypatch):
         quick_goodbye(monkeypatch)
         timer.sleep_after_goodbye()
         await asyncio.sleep(0.2)
-        assert fake.frames == ["EndFrame"]
+        assert fake.frames == ["cancel"]
 
     asyncio.run(main())
 
@@ -218,6 +240,6 @@ def test_told_to_sleep_while_a_job_is_busy_still_closes(monkeypatch):
         quick_goodbye(monkeypatch)
         timer.sleep_after_goodbye()
         await asyncio.sleep(0.2)
-        assert fake.frames == ["EndFrame"]
+        assert fake.frames == ["cancel"]
 
     asyncio.run(main())

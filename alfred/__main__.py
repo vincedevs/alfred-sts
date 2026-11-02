@@ -37,7 +37,6 @@ async def run(config: Config) -> None:
     detector = WakeWordDetector(config.wakeword_dir, config.wake_threshold)
     wake_sound = load_sound(PROJECT_ROOT / "sounds" / "listening_start.wav")
     done_sound = load_sound(PROJECT_ROOT / "sounds" / "task_done.wav")
-    sleep_sound = load_sound(PROJECT_ROOT / "sounds" / "session_end.wav")
     offline_sound = load_sound(PROJECT_ROOT / "sounds" / "connection_error.wav")
     engine = AudioEngine(config.input_device, config.output_device, config.echo_cancellation)
     engine.start()
@@ -70,8 +69,7 @@ async def run(config: Config) -> None:
                 raise asyncio.CancelledError
             if transcript is None:
                 engine.play(offline_sound)  # two low beeps: couldn't reach OpenAI
-            else:
-                engine.play(sleep_sound)  # tells you to say "Hey Alfred" next time
+            else:  # the sleep sound has played (voice.py)
                 learning = asyncio.create_task(services.memory.learn(transcript), name="learn")
                 background.add(learning)
                 learning.add_done_callback(background.discard)
