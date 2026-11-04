@@ -3,7 +3,7 @@
 fd-benchmark's launcher loads this file, then calls build() with its own transport.
 Point the launcher here with this line in fd-benchmark/.env:
 
-    FDBENCH_ENTRY=/path/to/alfred-v2/benchmark/assistant_entry.py
+    FDBENCH_ENTRY=/path/to/alfred-sts/benchmark/assistant_entry.py
 
 Imports from Alfred happen inside build(): the launcher adds the project to sys.path
 only after loading this file.

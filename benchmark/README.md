@@ -24,7 +24,7 @@ not copied), adapted for the benchmark:
 
 ## Set up (once)
 
-From the `alfred-v2` folder:
+From the `alfred-sts` folder:
 
 ```bash
 git clone https://github.com/trueshotjames/ai231-me3-full-duplex-benchmarking.git fd-benchmark
@@ -38,11 +38,11 @@ cp .env.example .env
 Then add this line to `fd-benchmark/.env`, with your own path:
 
 ```
-FDBENCH_ENTRY=/Users/you/path/to/alfred-v2/benchmark/assistant_entry.py
+FDBENCH_ENTRY=/Users/you/path/to/alfred-sts/benchmark/assistant_entry.py
 ```
 
 The same file takes an optional key for the benchmark's judge model (see its `.env.example`).
-Alfred's own keys stay in `alfred-v2/.env`.
+Alfred's own keys stay in `alfred-sts/.env`.
 
 Check (from `fd-benchmark`); the last line must say `READY`:
 

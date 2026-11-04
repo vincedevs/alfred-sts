@@ -4,6 +4,10 @@ A voice-only assistant with the manner of an English butler. Say **"Hey Alfred"*
 chime, then just talk. You can interrupt him at any time. Say "Hey Alfred" on its own and
 he greets you; say "Hey Alfred, what time is it?" in one breath and he just answers.
 
+This version, **alfred-sts**, talks with GPT-Live 1, one speech-to-speech model. Its twin,
+**alfred-cascade**, has the same features with speech-to-text, a text model and
+text-to-speech (Deepgram, GPT-6 Luna, Cartesia).
+
 - **Questions and conversation:** Alfred answers straight away, and looks up anything
   current (weather, news, prices) on the web.
 - **Bigger jobs:** research, comparisons, notes, drafts, charts and small programs run in
@@ -160,7 +164,7 @@ You need:
   [Gmail app password](https://myaccount.google.com/apppasswords) (never your real password).
 
 ```bash
-cd alfred-v2
+cd alfred-sts
 uv sync
 cp .env.example .env    # then fill in your keys
 ```
