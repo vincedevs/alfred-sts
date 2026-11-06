@@ -69,7 +69,8 @@ class PromiseCheck:
         note = (
             f'You told the user "{text[:120]}", but you haven\'t handed it to your backend, '
             "so nothing has happened. Hand it to your backend now. Don't apologise or "
-            "explain; if it needs a word, just say you're on it."
+            "explain. If it's already done (a tool result or your backend confirmed it), "
+            "say nothing at all."
         )
         if waiting := self._waiting():
             question = waiting[0]

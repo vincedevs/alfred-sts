@@ -20,6 +20,24 @@ from alfred.tasks import TaskRunner
 QUICK_ANSWER_SECONDS = 12  # a job done within this is answered straight away
 
 
+def running_note(task_id: int, questions: Questions) -> str:
+    """What to say about a job that's still running when do_task returns. If it asked the
+    user something meanwhile, that question was already asked and answered (or is being
+    asked): saying "I'm on it, I'll let you know" now would come after "Very good"."""
+    asked = questions.answered_recently(task_id) or any(
+        q.task_id == task_id for q in questions.waiting()
+    )
+    if asked:
+        return (
+            "Still working, and it has already asked the user its question. Say nothing "
+            "now: the result is announced when it's ready."
+        )
+    return (
+        "Still working. Tell the user in a few words that you're on it, and that they'll "
+        "hear a chime when it's ready."
+    )
+
+
 def job_tools(runner: TaskRunner, db: Database, questions: Questions) -> list:
     async def do_task(params: FunctionCallParams, request: str):
         """Hand a job to Alfred's background worker, which can research the web, read pages,
@@ -34,12 +52,7 @@ def job_tools(runner: TaskRunner, db: Database, questions: Questions) -> list:
         task = await runner.wait(task_id, QUICK_ANSWER_SECONDS)
         if task.status == "running":
             await params.result_callback(
-                {
-                    "task_id": task_id,
-                    "status": "running",
-                    "note": "Still working. Tell the user in a few words that you're on "
-                    "it, and that they'll hear a chime when it's ready.",
-                }
+                {"task_id": task_id, "status": "running", "note": running_note(task_id, questions)}
             )
         else:
             db.mark_told([task_id])

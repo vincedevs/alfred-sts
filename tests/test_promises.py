@@ -93,3 +93,19 @@ def test_the_reminder_says_where_an_answer_to_a_job_goes(monkeypatch):
         assert "job 3" in llm.notes[0] and "What email address" in llm.notes[0]
 
     asyncio.run(main())
+
+
+def test_a_house_tool_call_counts_as_a_hand_off(monkeypatch):
+    """GPT-Live calls the house's tools itself: "it's playing now" right after
+    play_music is no empty promise, even when the router was asked long before."""
+    monkeypatch.setattr(promises_module, "GRACE_SECONDS", 0.02)
+
+    async def main():
+        llm = FakeLLM()
+        check = PromiseCheck(llm)
+        check.handed_off()  # what Voice._used_tool does after play_music
+        check.alfred_said("The lights are dimmed, and it's playing now.")
+        await asyncio.sleep(0.05)
+        assert llm.notes == []
+
+    asyncio.run(main())

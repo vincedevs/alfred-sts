@@ -142,7 +142,9 @@ class Conversation:
         self.timer.listen(self.worker, user_turns)
         user_turns.add_event_handler("on_user_turn_started", self._user_started)
         self.llm.add_event_handler("on_session_started", self._session_started)
-        log_conversation(self.llm, user_turns, alfred_turns, self._line, self._looked_up)
+        log_conversation(
+            self.llm, user_turns, alfred_turns, self._line, self._looked_up, self._used_tool
+        )
 
     async def run(self) -> list[str] | None:
         s = self.services
@@ -215,6 +217,12 @@ class Conversation:
         """GPT-Live handed something to its backend."""
         self.lookups += 1
         self._looked_up_at = time.monotonic()
+        self.timer.activity()
+        self.promises.handed_off()
+
+    def _used_tool(self) -> None:
+        """GPT-Live called a tool itself (the house's): that's a hand-off too, so "it's
+        playing now" right after it is no empty promise (promises.py)."""
         self.timer.activity()
         self.promises.handed_off()
 
@@ -335,15 +343,22 @@ def create_worker(pipeline: Pipeline, config: Config) -> PipelineWorker:
     )
 
 
-def log_conversation(llm, user_turns, alfred_turns, on_line, on_lookup=None) -> None:
-    """Show what was said, and when the router looks something up. on_line(who, text) is
-    called with each thing said ("You" or "Alfred"); on_lookup() with each look-up."""
+def log_conversation(llm, user_turns, alfred_turns, on_line, on_lookup=None, on_tool=None) -> None:
+    """Show what was said, when the router looks something up and each tool GPT-Live
+    calls itself (the house's). on_line(who, text) is called with each thing said ("You"
+    or "Alfred"); on_lookup() with each look-up; on_tool() with each set of tool calls."""
 
     @llm.event_handler("on_delegation_created")
     async def on_delegation_created(_llm, delegation):
         logger.info(f"Router is looking something up ({delegation.id})")
         if on_lookup:
             on_lookup()
+
+    @llm.event_handler("on_function_calls_started")
+    async def on_function_calls_started(_llm, calls):
+        logger.info(f"Alfred is using: {', '.join(call.function_name for call in calls)}")
+        if on_tool:
+            on_tool()
 
     @user_turns.event_handler("on_user_turn_message_added")
     async def on_user_turn(_aggregator, message):

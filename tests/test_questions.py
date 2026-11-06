@@ -111,3 +111,20 @@ def test_ask_user_tool_returns_your_answer(tmp_path, monkeypatch):
         assert "the last five years" in result["content"][0]["text"]
 
     asyncio.run(main())
+
+
+def test_a_job_that_already_asked_gets_no_second_im_on_it(tmp_path):
+    from alfred.tools import running_note
+
+    async def main():
+        questions = Questions(Database(tmp_path / "alfred.db"))
+        assert "you're on it" in running_note(4, questions)  # asked nothing yet
+        asking = asyncio.create_task(questions.ask(4, "approve", "May I send the email?"))
+        await asyncio.sleep(0.01)
+        assert "say nothing" in running_note(4, questions).lower()  # being asked now
+        questions.answer(4, "yes")
+        await asking
+        assert "say nothing" in running_note(4, questions).lower()  # answered just now
+        assert "you're on it" in running_note(5, questions)  # another job
+
+    asyncio.run(main())
