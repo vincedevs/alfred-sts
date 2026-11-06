@@ -1,0 +1,129 @@
+{
+  "student": "201511198",
+  "run_id": "2026-11-06_20-26-59",
+  "started": "2026-11-06T20:26:59+08:00",
+  "rounds": 5,
+  "seed": 767537,
+  "fdbench": "0.1.0",
+  "rig": "direct",
+  "judge": null,
+  "machine": {
+    "os": "Darwin 25.6.0",
+    "machine": "arm64",
+    "pi_model": null,
+    "ram_gb": 16.0,
+    "python": "3.12.12",
+    "network": "unknown",
+    "pi_temp_c": null,
+    "pi_throttled": null,
+    "disk_free_gb": 472.5,
+    "hostname": "192.168.1.6",
+    "optional": {
+      "ASR (faster-whisper)": true,
+      "pitch/intensity (praat-parselmouth)": true,
+      "UTMOSv2 quality": false
+    },
+    "fdbench": "0.1.0"
+  },
+  "devices": {},
+  "warnings_overridden": [],
+  "dataset": "/Users/vinceduero/Documents/menggai/AI231/me/alfred-cascade/fd-benchmark/datasets",
+  "dataset_counts": {
+    "v1_pause_synth": 30,
+    "v1_pause_candor": 30,
+    "v1_turntaking": 30,
+    "v1_interrupt": 30,
+    "v15_interruption": 30,
+    "v15_backchannel": 30,
+    "v15_talking_to_other": 30,
+    "v15_background": 30,
+    "false_tt": 40,
+    "stage_latency": 150
+  },
+  "stage_test": {
+    "phrases": 10,
+    "runs": 3,
+    "phrases_dir": null
+  },
+  "targets": {
+    "e2e": 4.0,
+    "asr_final": 0.8,
+    "llm_ttft": 1.5,
+    "tts_ttfb": 0.6,
+    "barge_in": 0.8,
+    "wer": 0.15
+  },
+  "cooling": "official Raspberry Pi 5 case (built-in fan)",
+  "where": "remote",
+  "link": {
+    "peer": "192.168.1.11:57016",
+    "rtt_ms": 5.584415979683399,
+    "host": "0.0.0.0",
+    "port": 8791,
+    "disconnects": 1
+  },
+  "machine_stats": {
+    "hello": {
+      "host": "raspy",
+      "os": "Linux 6.18.50+rpt-rpi-2712",
+      "machine": "aarch64",
+      "pi_model": "Raspberry Pi 5 Model B Rev 1.1",
+      "ncpu": 4,
+      "caps": {
+        "backend": "procfs",
+        "cpu": true,
+        "cores": true,
+        "memory": true,
+        "processes": true,
+        "temperature": true,
+        "clock": true,
+        "throttle": true
+      },
+      "slow_every": 2.0,
+      "patterns": {
+        "asr_mcp": "mcp_servers.asr",
+        "tts_mcp": "mcp_servers.tts",
+        "tools_mcp": "mcp_servers.tools"
+      },
+      "python": "3.12.16",
+      "ram_mb": 8062,
+      "network": "wifi",
+      "link_network": "wifi",
+      "source": "remote"
+    },
+    "samples": 1838,
+    "clock_offset": 984162.7096692959
+  },
+  "marks": {
+    "stages_seen": {
+      "llm_request": 411,
+      "audio_out": 276,
+      "bot_stopped": 276,
+      "asr_partial": 985,
+      "tts_request": 245,
+      "llm_first_token": 245,
+      "tts_first_audio": 245,
+      "asr_final": 165,
+      "user_stopped": 330,
+      "llm_usage": 11
+    },
+    "n": 3189,
+    "clock_offsets": {
+      "ws": 984162.7093181261
+    }
+  },
+  "models": {
+    "harness": "pipecat 1.15.0",
+    "ASR": "gpt-live-1 (speech to speech: hears and speaks itself)",
+    "LLM": "gpt-live-1 (speech to speech: hears and speaks itself); router gpt-6-luna for look-ups",
+    "TTS": "gpt-live-1 (speech to speech: hears and speaks itself)",
+    "VAD": "gpt-live-1 turn detection"
+  },
+  "finished": "2026-11-06T20:57:39+08:00",
+  "outcome": {
+    "completed": 80,
+    "total": 80,
+    "stopped_early": false,
+    "seconds": 1832.844317415962
+  }
+}

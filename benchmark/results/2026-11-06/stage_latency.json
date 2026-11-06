@@ -1,0 +1,955 @@
+{
+  "about": "Stage latency per turn (course template, section 5). Times in seconds on the assistant machine's monotonic clock; e2e = audio_out - vad_end; e2e_heard = reply audio start - true end of speech (fdbench's audio clock); endpointing = vad_end - true end of speech.",
+  "phrases": 10,
+  "runs": 3,
+  "turns": [
+    {
+      "trial": "r01_stage_latency_phrase_v15_backchannel_20",
+      "run": 1,
+      "clip": "phrase_v15_backchannel_20",
+      "ref": "Illuminate public speaking thoroughly.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.412,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.1011,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_backchannel_90",
+      "run": 1,
+      "clip": "phrase_v15_backchannel_90",
+      "ref": "Discuss moral dilemmas fully.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 2.148,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.051,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_backchannel_96",
+      "run": 1,
+      "clip": "phrase_v15_backchannel_96",
+      "ref": "Explain the gig economy in depth.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.572,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0929,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_background_50",
+      "run": 1,
+      "clip": "phrase_v15_background_50",
+      "ref": "What day of the week is July 4th, 2026?",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.86,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0782,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_background_84",
+      "run": 1,
+      "clip": "phrase_v15_background_84",
+      "ref": "Schedule a meeting with John on Friday at 2.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.188,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0598,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_interruption_145",
+      "run": 1,
+      "clip": "phrase_v15_interruption_145",
+      "ref": "I've been trying to eat healthier lately",
+      "e2e": 1.3407,
+      "e2e_source": "marks",
+      "e2e_heard": 1.956,
+      "endpointing": 0.5154,
+      "asr_final": 0.0,
+      "llm_ttft": 0.9541,
+      "tts_ttfb": 0.0859,
+      "transcript": "I've been trying to eat",
+      "context_tokens": 237,
+      "context_messages": 19,
+      "wer": 0.2857142857142857,
+      "wer_detail": {
+        "ref_words": 7,
+        "edits": 2,
+        "wer": 0.2857142857142857
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_interruption_57",
+      "run": 1,
+      "clip": "phrase_v15_interruption_57",
+      "ref": "How do I take care of orchids?",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.54,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": 2.3689,
+      "tts_ttfb": 0.0814,
+      "transcript": null,
+      "context_tokens": 111,
+      "context_messages": 7,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_request",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v15_talking_to_other_20",
+      "run": 1,
+      "clip": "phrase_v15_talking_to_other_20",
+      "ref": "Send a message to Alex saying I'll be late.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.54,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0381,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v1_interrupt_163",
+      "run": 1,
+      "clip": "phrase_v1_interrupt_163",
+      "ref": "What do you think makes a great cup of coffee?",
+      "e2e": 0.0764,
+      "e2e_source": "marks",
+      "e2e_heard": 1.956,
+      "endpointing": 1.6836,
+      "asr_final": 0.0,
+      "llm_ttft": null,
+      "tts_ttfb": null,
+      "transcript": "What do you think makes a great cup of coffee",
+      "context_tokens": 326,
+      "context_messages": 31,
+      "wer": 0.0,
+      "wer_detail": {
+        "ref_words": 10,
+        "edits": 0,
+        "wer": 0.0
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r01_stage_latency_phrase_v1_interrupt_67",
+      "run": 1,
+      "clip": "phrase_v1_interrupt_67",
+      "ref": "Are there any good comedies out right now?",
+      "e2e": 0.0138,
+      "e2e_source": "marks",
+      "e2e_heard": 2.052,
+      "endpointing": 1.9201,
+      "asr_final": 0.0,
+      "llm_ttft": null,
+      "tts_ttfb": null,
+      "transcript": "Are there any good comedies out right now",
+      "context_tokens": 308,
+      "context_messages": 28,
+      "wer": 0.0,
+      "wer_detail": {
+        "ref_words": 8,
+        "edits": 0,
+        "wer": 0.0
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_backchannel_20",
+      "run": 2,
+      "clip": "phrase_v15_backchannel_20",
+      "ref": "Illuminate public speaking thoroughly.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.54,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0905,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_backchannel_90",
+      "run": 2,
+      "clip": "phrase_v15_backchannel_90",
+      "ref": "Discuss moral dilemmas fully.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 0.0,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": 0.0793,
+      "tts_ttfb": 0.0589,
+      "transcript": null,
+      "context_tokens": 633,
+      "context_messages": 60,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_request",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_backchannel_96",
+      "run": 2,
+      "clip": "phrase_v15_backchannel_96",
+      "ref": "Explain the gig economy in depth.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.54,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0864,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_background_50",
+      "run": 2,
+      "clip": "phrase_v15_background_50",
+      "ref": "What day of the week is July 4th, 2026?",
+      "e2e": 0.419,
+      "e2e_source": "marks",
+      "e2e_heard": 1.572,
+      "endpointing": 1.0432,
+      "asr_final": 0.0,
+      "llm_ttft": 0.0668,
+      "tts_ttfb": 0.0511,
+      "transcript": "What day of the week is July 4th,",
+      "context_tokens": 527,
+      "context_messages": 47,
+      "wer": 0.1111111111111111,
+      "wer_detail": {
+        "ref_words": 9,
+        "edits": 1,
+        "wer": 0.1111111111111111
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_background_84",
+      "run": 2,
+      "clip": "phrase_v15_background_84",
+      "ref": "Schedule a meeting with John on Friday at 2.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.444,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": 1.6111,
+      "tts_ttfb": 0.0786,
+      "transcript": null,
+      "context_tokens": 446,
+      "context_messages": 40,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_request",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_interruption_145",
+      "run": 2,
+      "clip": "phrase_v15_interruption_145",
+      "ref": "I've been trying to eat healthier lately",
+      "e2e": 0.364,
+      "e2e_source": "marks",
+      "e2e_heard": 1.54,
+      "endpointing": 1.1035,
+      "asr_final": 0.0,
+      "llm_ttft": 0.0448,
+      "tts_ttfb": 0.0025,
+      "transcript": "I've been trying to eat healthier",
+      "context_tokens": 492,
+      "context_messages": 43,
+      "wer": 0.14285714285714285,
+      "wer_detail": {
+        "ref_words": 7,
+        "edits": 1,
+        "wer": 0.14285714285714285
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_interruption_57",
+      "run": 2,
+      "clip": "phrase_v15_interruption_57",
+      "ref": "How do I take care of orchids?",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.732,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0758,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v15_talking_to_other_20",
+      "run": 2,
+      "clip": "phrase_v15_talking_to_other_20",
+      "ref": "Send a message to Alex saying I'll be late.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.828,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0278,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v1_interrupt_163",
+      "run": 2,
+      "clip": "phrase_v1_interrupt_163",
+      "ref": "What do you think makes a great cup of coffee?",
+      "e2e": 0.7143,
+      "e2e_source": "marks",
+      "e2e_heard": 2.084,
+      "endpointing": 1.1695,
+      "asr_final": 0.0,
+      "llm_ttft": 0.3846,
+      "tts_ttfb": 0.079,
+      "transcript": "What do you think makes a great cup of",
+      "context_tokens": 700,
+      "context_messages": 66,
+      "wer": 0.1,
+      "wer_detail": {
+        "ref_words": 10,
+        "edits": 1,
+        "wer": 0.1
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r02_stage_latency_phrase_v1_interrupt_67",
+      "run": 2,
+      "clip": "phrase_v1_interrupt_67",
+      "ref": "Are there any good comedies out right now?",
+      "e2e": 0.0534,
+      "e2e_source": "marks",
+      "e2e_heard": 2.052,
+      "endpointing": 1.9384,
+      "asr_final": 0.0,
+      "llm_ttft": null,
+      "tts_ttfb": null,
+      "transcript": "Are there any good comedies out right now",
+      "context_tokens": 615,
+      "context_messages": 57,
+      "wer": 0.0,
+      "wer_detail": {
+        "ref_words": 8,
+        "edits": 0,
+        "wer": 0.0
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_backchannel_20",
+      "run": 3,
+      "clip": "phrase_v15_backchannel_20",
+      "ref": "Illuminate public speaking thoroughly.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.22,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.078,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_backchannel_90",
+      "run": 3,
+      "clip": "phrase_v15_backchannel_90",
+      "ref": "Discuss moral dilemmas fully.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.668,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0791,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_backchannel_96",
+      "run": 3,
+      "clip": "phrase_v15_backchannel_96",
+      "ref": "Explain the gig economy in depth.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.828,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": 2.1929,
+      "tts_ttfb": 0.0194,
+      "transcript": null,
+      "context_tokens": 1182,
+      "context_messages": 112,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_request",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_background_50",
+      "run": 3,
+      "clip": "phrase_v15_background_50",
+      "ref": "What day of the week is July 4th, 2026?",
+      "e2e": 0.7093,
+      "e2e_source": "marks",
+      "e2e_heard": 1.86,
+      "endpointing": 1.0486,
+      "asr_final": 0.0,
+      "llm_ttft": 0.2995,
+      "tts_ttfb": 0.0314,
+      "transcript": "What day of the week is July 4th",
+      "context_tokens": 1084,
+      "context_messages": 101,
+      "wer": 0.1111111111111111,
+      "wer_detail": {
+        "ref_words": 9,
+        "edits": 1,
+        "wer": 0.1111111111111111
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_background_84",
+      "run": 3,
+      "clip": "phrase_v15_background_84",
+      "ref": "Schedule a meeting with John on Friday at 2.",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.572,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0185,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_interruption_145",
+      "run": 3,
+      "clip": "phrase_v15_interruption_145",
+      "ref": "I've been trying to eat healthier lately",
+      "e2e": 0.3542,
+      "e2e_source": "marks",
+      "e2e_heard": 1.668,
+      "endpointing": 1.2982,
+      "asr_final": 0.0,
+      "llm_ttft": null,
+      "tts_ttfb": null,
+      "transcript": "I've been trying to eat healthier",
+      "context_tokens": 934,
+      "context_messages": 87,
+      "wer": 0.14285714285714285,
+      "wer_detail": {
+        "ref_words": 7,
+        "edits": 1,
+        "wer": 0.14285714285714285
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_interruption_57",
+      "run": 3,
+      "clip": "phrase_v15_interruption_57",
+      "ref": "How do I take care of orchids?",
+      "e2e": null,
+      "e2e_source": null,
+      "e2e_heard": 1.732,
+      "endpointing": null,
+      "asr_final": null,
+      "llm_ttft": null,
+      "tts_ttfb": 0.0783,
+      "transcript": null,
+      "context_tokens": null,
+      "context_messages": null,
+      "wer": null,
+      "wer_detail": null,
+      "found": [
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v15_talking_to_other_20",
+      "run": 3,
+      "clip": "phrase_v15_talking_to_other_20",
+      "ref": "Send a message to Alex saying I'll be late.",
+      "e2e": 0.0589,
+      "e2e_source": "marks",
+      "e2e_heard": 1.892,
+      "endpointing": 1.7523,
+      "asr_final": 0.0,
+      "llm_ttft": null,
+      "tts_ttfb": null,
+      "transcript": "Send a message to Alex saying I'll be late",
+      "context_tokens": 1242,
+      "context_messages": 118,
+      "wer": 0.0,
+      "wer_detail": {
+        "ref_words": 9,
+        "edits": 0,
+        "wer": 0.0
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v1_interrupt_163",
+      "run": 3,
+      "clip": "phrase_v1_interrupt_163",
+      "ref": "What do you think makes a great cup of coffee?",
+      "e2e": 0.5457,
+      "e2e_source": "marks",
+      "e2e_heard": 1.988,
+      "endpointing": 1.1803,
+      "asr_final": 0.0,
+      "llm_ttft": 0.2461,
+      "tts_ttfb": 0.0834,
+      "transcript": "What do you think makes a great cup of",
+      "context_tokens": 1096,
+      "context_messages": 104,
+      "wer": 0.1,
+      "wer_detail": {
+        "ref_words": 10,
+        "edits": 1,
+        "wer": 0.1
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "llm_first_token",
+        "tts_request",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    },
+    {
+      "trial": "r03_stage_latency_phrase_v1_interrupt_67",
+      "run": 3,
+      "clip": "phrase_v1_interrupt_67",
+      "ref": "Are there any good comedies out right now?",
+      "e2e": 0.0943,
+      "e2e_source": "marks",
+      "e2e_heard": 2.052,
+      "endpointing": 1.8233,
+      "asr_final": 0.0,
+      "llm_ttft": null,
+      "tts_ttfb": null,
+      "transcript": "Are there any good comedies out right now",
+      "context_tokens": 1292,
+      "context_messages": 121,
+      "wer": 0.0,
+      "wer_detail": {
+        "ref_words": 8,
+        "edits": 0,
+        "wer": 0.0
+      },
+      "found": [
+        "vad_end",
+        "asr_final",
+        "tts_first_audio",
+        "audio_out"
+      ]
+    }
+  ],
+  "per_run": {
+    "1": {
+      "e2e": {
+        "n": 3,
+        "median": 0.0764,
+        "p95": 1.21427,
+        "mean": 0.4769666666666667,
+        "min": 0.0138,
+        "max": 1.3407,
+        "ci95_median": [
+          0.0138,
+          1.3407
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "asr_final": {
+        "n": 3,
+        "median": 0.0,
+        "p95": 0.0,
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "ci95_median": [
+          0.0,
+          0.0
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "llm_ttft": {
+        "n": 2,
+        "median": 1.6615,
+        "p95": 2.2981599999999998,
+        "mean": 1.6615,
+        "min": 0.9541,
+        "max": 2.3689,
+        "ci95_median": [
+          null,
+          null
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "tts_ttfb": {
+        "n": 8,
+        "median": 0.07980000000000001,
+        "p95": 0.09823,
+        "mean": 0.07355,
+        "min": 0.0381,
+        "max": 0.1011,
+        "ci95_median": [
+          0.051,
+          0.0929
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      }
+    },
+    "2": {
+      "e2e": {
+        "n": 4,
+        "median": 0.39149999999999996,
+        "p95": 0.670005,
+        "mean": 0.387675,
+        "min": 0.0534,
+        "max": 0.7143,
+        "ci95_median": [
+          0.0534,
+          0.7143
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "asr_final": {
+        "n": 4,
+        "median": 0.0,
+        "p95": 0.0,
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "ci95_median": [
+          0.0,
+          0.0
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "llm_ttft": {
+        "n": 5,
+        "median": 0.0793,
+        "p95": 1.3657999999999997,
+        "mean": 0.43732,
+        "min": 0.0448,
+        "max": 1.6111,
+        "ci95_median": [
+          0.0448,
+          1.6111
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "tts_ttfb": {
+        "n": 9,
+        "median": 0.0758,
+        "p95": 0.08886,
+        "mean": 0.061177777777777775,
+        "min": 0.0025,
+        "max": 0.0905,
+        "ci95_median": [
+          0.0278,
+          0.0864
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      }
+    },
+    "3": {
+      "e2e": {
+        "n": 5,
+        "median": 0.3542,
+        "p95": 0.67658,
+        "mean": 0.35248,
+        "min": 0.0589,
+        "max": 0.7093,
+        "ci95_median": [
+          0.0589,
+          0.7093
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "asr_final": {
+        "n": 5,
+        "median": 0.0,
+        "p95": 0.0,
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "ci95_median": [
+          0.0,
+          0.0
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "llm_ttft": {
+        "n": 3,
+        "median": 0.2995,
+        "p95": 2.00356,
+        "mean": 0.9128333333333334,
+        "min": 0.2461,
+        "max": 2.1929,
+        "ci95_median": [
+          0.2461,
+          2.1929
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      },
+      "tts_ttfb": {
+        "n": 7,
+        "median": 0.078,
+        "p95": 0.08211,
+        "mean": 0.05544285714285714,
+        "min": 0.0185,
+        "max": 0.0834,
+        "ci95_median": [
+          0.0194,
+          0.0791
+        ],
+        "p95_note": "with fewer than 20 trials p95 is close to the slowest trial"
+      }
+    }
+  }
+}

@@ -1,0 +1,202 @@
+{"t": "2026-11-06T20:27:06+08:00", "event": "run_start", "total": 80, "rounds": 5, "seed": 767537}
+{"t": "2026-11-06T20:27:06+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_background_84", "group": "stage_latency", "clip": "phrase_v15_background_84", "variant": "main"}
+{"t": "2026-11-06T20:27:21+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_background_84", "actual": "replied 1.19 s after speech end", "verdict": "✓ 1.19 s", "ok": true}
+{"t": "2026-11-06T20:27:27+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_backchannel_96", "group": "stage_latency", "clip": "phrase_v15_backchannel_96", "variant": "main"}
+{"t": "2026-11-06T20:27:39+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_backchannel_96", "actual": "replied 1.57 s after speech end", "verdict": "✓ 1.57 s", "ok": true}
+{"t": "2026-11-06T20:27:45+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_interruption_57", "group": "stage_latency", "clip": "phrase_v15_interruption_57", "variant": "main"}
+{"t": "2026-11-06T20:27:59+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_interruption_57", "actual": "replied 1.54 s after speech end", "verdict": "✓ 1.54 s", "ok": true}
+{"t": "2026-11-06T20:28:05+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_backchannel_20", "group": "stage_latency", "clip": "phrase_v15_backchannel_20", "variant": "main"}
+{"t": "2026-11-06T20:28:15+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_backchannel_20", "actual": "replied 1.41 s after speech end", "verdict": "✓ 1.41 s", "ok": true}
+{"t": "2026-11-06T20:28:21+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_interruption_145", "group": "stage_latency", "clip": "phrase_v15_interruption_145", "variant": "main"}
+{"t": "2026-11-06T20:28:33+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_interruption_145", "actual": "replied 1.96 s after speech end", "verdict": "✓ 1.96 s", "ok": true}
+{"t": "2026-11-06T20:28:39+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_background_50", "group": "stage_latency", "clip": "phrase_v15_background_50", "variant": "main"}
+{"t": "2026-11-06T20:28:46+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_background_50", "actual": "replied 1.86 s after speech end", "verdict": "✓ 1.86 s", "ok": true}
+{"t": "2026-11-06T20:28:52+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v1_interrupt_67", "group": "stage_latency", "clip": "phrase_v1_interrupt_67", "variant": "main"}
+{"t": "2026-11-06T20:28:59+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v1_interrupt_67", "actual": "replied 2.05 s after speech end", "verdict": "✓ 2.05 s", "ok": true}
+{"t": "2026-11-06T20:29:05+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v1_interrupt_163", "group": "stage_latency", "clip": "phrase_v1_interrupt_163", "variant": "main"}
+{"t": "2026-11-06T20:29:19+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v1_interrupt_163", "actual": "replied 1.96 s after speech end", "verdict": "✓ 1.96 s", "ok": true}
+{"t": "2026-11-06T20:29:25+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_talking_to_other_20", "group": "stage_latency", "clip": "phrase_v15_talking_to_other_20", "variant": "main"}
+{"t": "2026-11-06T20:29:35+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_talking_to_other_20", "actual": "replied 1.54 s after speech end", "verdict": "✓ 1.54 s", "ok": true}
+{"t": "2026-11-06T20:29:41+08:00", "event": "trial_start", "trial": "r01_stage_latency_phrase_v15_backchannel_90", "group": "stage_latency", "clip": "phrase_v15_backchannel_90", "variant": "main"}
+{"t": "2026-11-06T20:29:53+08:00", "event": "trial_end", "trial": "r01_stage_latency_phrase_v15_backchannel_90", "actual": "replied 2.15 s after speech end", "verdict": "✓ 2.15 s", "ok": true}
+{"t": "2026-11-06T20:29:59+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_background_84", "group": "stage_latency", "clip": "phrase_v15_background_84", "variant": "main"}
+{"t": "2026-11-06T20:30:09+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_background_84", "actual": "replied 1.44 s after speech end", "verdict": "✓ 1.44 s", "ok": true}
+{"t": "2026-11-06T20:30:15+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_interruption_145", "group": "stage_latency", "clip": "phrase_v15_interruption_145", "variant": "main"}
+{"t": "2026-11-06T20:30:26+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_interruption_145", "actual": "replied 1.54 s after speech end", "verdict": "✓ 1.54 s", "ok": true}
+{"t": "2026-11-06T20:30:32+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_background_50", "group": "stage_latency", "clip": "phrase_v15_background_50", "variant": "main"}
+{"t": "2026-11-06T20:30:39+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_background_50", "actual": "replied 1.57 s after speech end", "verdict": "✓ 1.57 s", "ok": true}
+{"t": "2026-11-06T20:30:45+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_backchannel_96", "group": "stage_latency", "clip": "phrase_v15_backchannel_96", "variant": "main"}
+{"t": "2026-11-06T20:30:58+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_backchannel_96", "actual": "replied 1.54 s after speech end", "verdict": "✓ 1.54 s", "ok": true}
+{"t": "2026-11-06T20:31:04+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v1_interrupt_67", "group": "stage_latency", "clip": "phrase_v1_interrupt_67", "variant": "main"}
+{"t": "2026-11-06T20:31:11+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v1_interrupt_67", "actual": "replied 2.05 s after speech end", "verdict": "✓ 2.05 s", "ok": true}
+{"t": "2026-11-06T20:31:17+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_backchannel_90", "group": "stage_latency", "clip": "phrase_v15_backchannel_90", "variant": "main"}
+{"t": "2026-11-06T20:31:28+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_backchannel_90", "actual": "replied 0.00 s after speech end", "verdict": "✓ 0.00 s", "ok": true}
+{"t": "2026-11-06T20:31:34+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v1_interrupt_163", "group": "stage_latency", "clip": "phrase_v1_interrupt_163", "variant": "main"}
+{"t": "2026-11-06T20:31:46+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v1_interrupt_163", "actual": "replied 2.08 s after speech end", "verdict": "✓ 2.08 s", "ok": true}
+{"t": "2026-11-06T20:31:52+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_interruption_57", "group": "stage_latency", "clip": "phrase_v15_interruption_57", "variant": "main"}
+{"t": "2026-11-06T20:32:04+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_interruption_57", "actual": "replied 1.73 s after speech end", "verdict": "✓ 1.73 s", "ok": true}
+{"t": "2026-11-06T20:32:10+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_talking_to_other_20", "group": "stage_latency", "clip": "phrase_v15_talking_to_other_20", "variant": "main"}
+{"t": "2026-11-06T20:32:23+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_talking_to_other_20", "actual": "replied 1.83 s after speech end", "verdict": "✓ 1.83 s", "ok": true}
+{"t": "2026-11-06T20:32:29+08:00", "event": "trial_start", "trial": "r02_stage_latency_phrase_v15_backchannel_20", "group": "stage_latency", "clip": "phrase_v15_backchannel_20", "variant": "main"}
+{"t": "2026-11-06T20:32:43+08:00", "event": "trial_end", "trial": "r02_stage_latency_phrase_v15_backchannel_20", "actual": "replied 1.54 s after speech end", "verdict": "✓ 1.54 s", "ok": true}
+{"t": "2026-11-06T20:32:49+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_background_84", "group": "stage_latency", "clip": "phrase_v15_background_84", "variant": "main"}
+{"t": "2026-11-06T20:32:59+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_background_84", "actual": "replied 1.57 s after speech end", "verdict": "✓ 1.57 s", "ok": true}
+{"t": "2026-11-06T20:33:05+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_interruption_145", "group": "stage_latency", "clip": "phrase_v15_interruption_145", "variant": "main"}
+{"t": "2026-11-06T20:33:18+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_interruption_145", "actual": "replied 1.67 s after speech end", "verdict": "✓ 1.67 s", "ok": true}
+{"t": "2026-11-06T20:33:24+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_interruption_57", "group": "stage_latency", "clip": "phrase_v15_interruption_57", "variant": "main"}
+{"t": "2026-11-06T20:33:37+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_interruption_57", "actual": "replied 1.73 s after speech end", "verdict": "✓ 1.73 s", "ok": true}
+{"t": "2026-11-06T20:33:43+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_backchannel_20", "group": "stage_latency", "clip": "phrase_v15_backchannel_20", "variant": "main"}
+{"t": "2026-11-06T20:33:56+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_backchannel_20", "actual": "replied 1.22 s after speech end", "verdict": "✓ 1.22 s", "ok": true}
+{"t": "2026-11-06T20:34:02+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_background_50", "group": "stage_latency", "clip": "phrase_v15_background_50", "variant": "main"}
+{"t": "2026-11-06T20:34:09+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_background_50", "actual": "replied 1.86 s after speech end", "verdict": "✓ 1.86 s", "ok": true}
+{"t": "2026-11-06T20:34:15+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v1_interrupt_163", "group": "stage_latency", "clip": "phrase_v1_interrupt_163", "variant": "main"}
+{"t": "2026-11-06T20:34:26+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v1_interrupt_163", "actual": "replied 1.99 s after speech end", "verdict": "✓ 1.99 s", "ok": true}
+{"t": "2026-11-06T20:34:32+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_backchannel_90", "group": "stage_latency", "clip": "phrase_v15_backchannel_90", "variant": "main"}
+{"t": "2026-11-06T20:34:44+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_backchannel_90", "actual": "replied 1.67 s after speech end", "verdict": "✓ 1.67 s", "ok": true}
+{"t": "2026-11-06T20:34:50+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_backchannel_96", "group": "stage_latency", "clip": "phrase_v15_backchannel_96", "variant": "main"}
+{"t": "2026-11-06T20:35:04+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_backchannel_96", "actual": "replied 1.83 s after speech end", "verdict": "✓ 1.83 s", "ok": true}
+{"t": "2026-11-06T20:35:10+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v15_talking_to_other_20", "group": "stage_latency", "clip": "phrase_v15_talking_to_other_20", "variant": "main"}
+{"t": "2026-11-06T20:35:24+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v15_talking_to_other_20", "actual": "replied 1.89 s after speech end", "verdict": "✓ 1.89 s", "ok": true}
+{"t": "2026-11-06T20:35:30+08:00", "event": "trial_start", "trial": "r03_stage_latency_phrase_v1_interrupt_67", "group": "stage_latency", "clip": "phrase_v1_interrupt_67", "variant": "main"}
+{"t": "2026-11-06T20:35:36+08:00", "event": "trial_end", "trial": "r03_stage_latency_phrase_v1_interrupt_67", "actual": "replied 2.05 s after speech end", "verdict": "✓ 2.05 s", "ok": true}
+{"t": "2026-11-06T20:35:42+08:00", "event": "trial_start", "trial": "r01_v1_pause_candor_v1_pause_candor_215", "group": "v1_pause_candor", "clip": "v1_pause_candor_215", "variant": "main"}
+{"t": "2026-11-06T20:36:08+08:00", "event": "trial_end", "trial": "r01_v1_pause_candor_v1_pause_candor_215", "actual": "spoke 16.1 s at 0.0 s", "verdict": "✗ TOR 1", "ok": false}
+{"t": "2026-11-06T20:36:14+08:00", "event": "trial_start", "trial": "r01_false_tt_false_side_talk_004", "group": "false_tt", "clip": "false_side_talk_004", "variant": "main"}
+{"t": "2026-11-06T20:36:24+08:00", "event": "trial_end", "trial": "r01_false_tt_false_side_talk_004", "actual": "silent", "verdict": "✓ silent", "ok": true}
+{"t": "2026-11-06T20:36:30+08:00", "event": "trial_start", "trial": "r01_v15_background_v15_background_95", "group": "v15_background", "clip": "v15_background_95", "variant": "main"}
+{"t": "2026-11-06T20:36:45+08:00", "event": "trial_end", "trial": "r01_v15_background_v15_background_95", "actual": "kept talking, back 1.86 s after", "verdict": "✓ kept talking", "ok": true}
+{"t": "2026-11-06T20:36:51+08:00", "event": "trial_start", "trial": "r01_v15_background_v15_background_95_clean", "group": "v15_background", "clip": "v15_background_95", "variant": "clean"}
+{"t": "2026-11-06T20:37:02+08:00", "event": "trial_end", "trial": "r01_v15_background_v15_background_95_clean", "actual": "replied after 1.67 s, spoke 6.3 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:37:08+08:00", "event": "trial_start", "trial": "r01_v1_interrupt_v1_interrupt_96", "group": "v1_interrupt", "clip": "v1_interrupt_96", "variant": "main"}
+{"t": "2026-11-06T20:37:22+08:00", "event": "trial_end", "trial": "r01_v1_interrupt_v1_interrupt_96", "actual": "stopped after 1.95 s, back 2.44 s after", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:37:28+08:00", "event": "trial_start", "trial": "r01_v15_interruption_v15_interruption_35", "group": "v15_interruption", "clip": "v15_interruption_35", "variant": "main"}
+{"t": "2026-11-06T20:37:39+08:00", "event": "trial_end", "trial": "r01_v15_interruption_v15_interruption_35", "actual": "stopped after 0.99 s, back 2.24 s after", "verdict": "◐ replied · content: judge", "ok": null}
+{"t": "2026-11-06T20:37:45+08:00", "event": "trial_start", "trial": "r01_v15_interruption_v15_interruption_35_clean", "group": "v15_interruption", "clip": "v15_interruption_35", "variant": "clean"}
+{"t": "2026-11-06T20:37:49+08:00", "event": "trial_end", "trial": "r01_v15_interruption_v15_interruption_35_clean", "actual": "replied after 0.00 s, spoke 0.2 s", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:37:55+08:00", "event": "trial_start", "trial": "r01_v15_talking_to_other_v15_talking_to_other_52", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_52", "variant": "main"}
+{"t": "2026-11-06T20:38:06+08:00", "event": "trial_end", "trial": "r01_v15_talking_to_other_v15_talking_to_other_52", "actual": "stopped after 0.32 s, did not come back", "verdict": "✗ stopped, silent", "ok": false}
+{"t": "2026-11-06T20:38:12+08:00", "event": "trial_start", "trial": "r01_v15_talking_to_other_v15_talking_to_other_52_clean", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_52", "variant": "clean"}
+{"t": "2026-11-06T20:38:20+08:00", "event": "trial_end", "trial": "r01_v15_talking_to_other_v15_talking_to_other_52_clean", "actual": "replied after 1.19 s, spoke 3.7 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:38:26+08:00", "event": "trial_start", "trial": "r01_v1_pause_synth_v1_pause_synth_117", "group": "v1_pause_synth", "clip": "v1_pause_synth_117", "variant": "main"}
+{"t": "2026-11-06T20:38:39+08:00", "event": "trial_end", "trial": "r01_v1_pause_synth_v1_pause_synth_117", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:38:45+08:00", "event": "trial_start", "trial": "r01_false_tt_false_tv_radio_004", "group": "false_tt", "clip": "false_tv_radio_004", "variant": "main"}
+{"t": "2026-11-06T20:38:59+08:00", "event": "trial_end", "trial": "r01_false_tt_false_tv_radio_004", "actual": "spoke 6.7 s after +1.3 s", "verdict": "✗ took turn", "ok": false}
+{"t": "2026-11-06T20:39:05+08:00", "event": "trial_start", "trial": "r01_v1_turntaking_v1_turntaking_91", "group": "v1_turntaking", "clip": "v1_turntaking_91", "variant": "main"}
+{"t": "2026-11-06T20:39:18+08:00", "event": "trial_end", "trial": "r01_v1_turntaking_v1_turntaking_91", "actual": "replied after 1.59 s, spoke 6.4 s", "verdict": "✓ 1.59 s", "ok": true}
+{"t": "2026-11-06T20:39:24+08:00", "event": "trial_start", "trial": "r01_v15_backchannel_v15_backchannel_79", "group": "v15_backchannel", "clip": "v15_backchannel_79", "variant": "main"}
+{"t": "2026-11-06T20:39:39+08:00", "event": "trial_end", "trial": "r01_v15_backchannel_v15_backchannel_79", "actual": "kept talking, back 2.45 s after", "verdict": "✓ kept talking", "ok": true}
+{"t": "2026-11-06T20:39:45+08:00", "event": "trial_start", "trial": "r01_v15_backchannel_v15_backchannel_79_clean", "group": "v15_backchannel", "clip": "v15_backchannel_79", "variant": "clean"}
+{"t": "2026-11-06T20:39:55+08:00", "event": "trial_end", "trial": "r01_v15_backchannel_v15_backchannel_79_clean", "actual": "replied after 1.42 s, spoke 6.1 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:40:01+08:00", "event": "trial_start", "trial": "r02_v15_interruption_v15_interruption_55", "group": "v15_interruption", "clip": "v15_interruption_55", "variant": "main"}
+{"t": "2026-11-06T20:40:13+08:00", "event": "trial_end", "trial": "r02_v15_interruption_v15_interruption_55", "actual": "stopped after 0.48 s, back 1.67 s after", "verdict": "◐ replied · content: judge", "ok": null}
+{"t": "2026-11-06T20:40:19+08:00", "event": "trial_start", "trial": "r02_v15_interruption_v15_interruption_55_clean", "group": "v15_interruption", "clip": "v15_interruption_55", "variant": "clean"}
+{"t": "2026-11-06T20:40:32+08:00", "event": "trial_end", "trial": "r02_v15_interruption_v15_interruption_55_clean", "actual": "replied after 1.64 s, spoke 6.4 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:40:38+08:00", "event": "trial_start", "trial": "r02_v1_pause_synth_v1_pause_synth_59", "group": "v1_pause_synth", "clip": "v1_pause_synth_59", "variant": "main"}
+{"t": "2026-11-06T20:40:54+08:00", "event": "trial_end", "trial": "r02_v1_pause_synth_v1_pause_synth_59", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:41:00+08:00", "event": "trial_start", "trial": "r02_v15_backchannel_v15_backchannel_34", "group": "v15_backchannel", "clip": "v15_backchannel_34", "variant": "main"}
+{"t": "2026-11-06T20:41:07+08:00", "event": "trial_end", "trial": "r02_v15_backchannel_v15_backchannel_34", "actual": "kept talking, did not come back", "verdict": "✓ kept talking", "ok": true}
+{"t": "2026-11-06T20:41:13+08:00", "event": "trial_start", "trial": "r02_v15_backchannel_v15_backchannel_34_clean", "group": "v15_backchannel", "clip": "v15_backchannel_34", "variant": "clean"}
+{"t": "2026-11-06T20:41:25+08:00", "event": "trial_end", "trial": "r02_v15_backchannel_v15_backchannel_34_clean", "actual": "replied after 0.00 s, spoke 8.0 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:41:31+08:00", "event": "trial_start", "trial": "r02_v15_background_v15_background_17", "group": "v15_background", "clip": "v15_background_17", "variant": "main"}
+{"t": "2026-11-06T20:41:40+08:00", "event": "trial_end", "trial": "r02_v15_background_v15_background_17", "actual": "was already silent, back 1.92 s after", "verdict": "◐ paused, came back · content: judge", "ok": null}
+{"t": "2026-11-06T20:41:46+08:00", "event": "trial_start", "trial": "r02_v15_background_v15_background_17_clean", "group": "v15_background", "clip": "v15_background_17", "variant": "clean"}
+{"t": "2026-11-06T20:41:52+08:00", "event": "trial_end", "trial": "r02_v15_background_v15_background_17_clean", "actual": "replied after 1.80 s, spoke 0.6 s", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:41:58+08:00", "event": "trial_start", "trial": "r02_v1_turntaking_v1_turntaking_119", "group": "v1_turntaking", "clip": "v1_turntaking_119", "variant": "main"}
+{"t": "2026-11-06T20:42:13+08:00", "event": "trial_end", "trial": "r02_v1_turntaking_v1_turntaking_119", "actual": "replied after 2.05 s, spoke 6.0 s", "verdict": "✓ 2.05 s", "ok": true}
+{"t": "2026-11-06T20:42:19+08:00", "event": "trial_start", "trial": "r02_v1_pause_candor_v1_pause_candor_30", "group": "v1_pause_candor", "clip": "v1_pause_candor_30", "variant": "main"}
+{"t": "2026-11-06T20:42:37+08:00", "event": "trial_end", "trial": "r02_v1_pause_candor_v1_pause_candor_30", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:42:43+08:00", "event": "trial_start", "trial": "r02_false_tt_false_noise_009", "group": "false_tt", "clip": "false_noise_009", "variant": "main"}
+{"t": "2026-11-06T20:42:55+08:00", "event": "trial_end", "trial": "r02_false_tt_false_noise_009", "actual": "silent", "verdict": "✓ silent", "ok": true}
+{"t": "2026-11-06T20:43:01+08:00", "event": "trial_start", "trial": "r02_v1_interrupt_v1_interrupt_92", "group": "v1_interrupt", "clip": "v1_interrupt_92", "variant": "main"}
+{"t": "2026-11-06T20:43:22+08:00", "event": "trial_end", "trial": "r02_v1_interrupt_v1_interrupt_92", "actual": "was already silent, back 1.96 s after", "verdict": "✓ yielded, 1.42 s", "ok": true}
+{"t": "2026-11-06T20:43:28+08:00", "event": "trial_start", "trial": "r02_v15_talking_to_other_v15_talking_to_other_76", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_76", "variant": "main"}
+{"t": "2026-11-06T20:43:39+08:00", "event": "trial_end", "trial": "r02_v15_talking_to_other_v15_talking_to_other_76", "actual": "stopped after 0.93 s, did not come back", "verdict": "✗ stopped, silent", "ok": false}
+{"t": "2026-11-06T20:43:45+08:00", "event": "trial_start", "trial": "r02_v15_talking_to_other_v15_talking_to_other_76_clean", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_76", "variant": "clean"}
+{"t": "2026-11-06T20:43:52+08:00", "event": "trial_end", "trial": "r02_v15_talking_to_other_v15_talking_to_other_76_clean", "actual": "replied after 1.80 s, spoke 0.8 s", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:43:58+08:00", "event": "trial_start", "trial": "r02_false_tt_false_background_005", "group": "false_tt", "clip": "false_background_005", "variant": "main"}
+{"t": "2026-11-06T20:44:08+08:00", "event": "trial_end", "trial": "r02_false_tt_false_background_005", "actual": "spoke 6.8 s after +1.2 s", "verdict": "✗ took turn", "ok": false}
+{"t": "2026-11-06T20:44:14+08:00", "event": "trial_start", "trial": "r03_v1_pause_synth_v1_pause_synth_115", "group": "v1_pause_synth", "clip": "v1_pause_synth_115", "variant": "main"}
+{"t": "2026-11-06T20:44:27+08:00", "event": "trial_end", "trial": "r03_v1_pause_synth_v1_pause_synth_115", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:44:33+08:00", "event": "trial_start", "trial": "r03_v1_pause_candor_v1_pause_candor_161", "group": "v1_pause_candor", "clip": "v1_pause_candor_161", "variant": "main"}
+{"t": "2026-11-06T20:44:47+08:00", "event": "trial_end", "trial": "r03_v1_pause_candor_v1_pause_candor_161", "actual": "spoke 2.4 s at 0.0 s", "verdict": "✗ TOR 1", "ok": false}
+{"t": "2026-11-06T20:44:53+08:00", "event": "trial_start", "trial": "r03_false_tt_false_side_talk_000", "group": "false_tt", "clip": "false_side_talk_000", "variant": "main"}
+{"t": "2026-11-06T20:45:03+08:00", "event": "trial_end", "trial": "r03_false_tt_false_side_talk_000", "actual": "silent", "verdict": "✓ silent", "ok": true}
+{"t": "2026-11-06T20:45:09+08:00", "event": "trial_start", "trial": "r03_v15_talking_to_other_v15_talking_to_other_86", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_86", "variant": "main"}
+{"t": "2026-11-06T20:45:25+08:00", "event": "trial_end", "trial": "r03_v15_talking_to_other_v15_talking_to_other_86", "actual": "stopped after 0.48 s, did not come back", "verdict": "✗ stopped, silent", "ok": false}
+{"t": "2026-11-06T20:45:31+08:00", "event": "trial_start", "trial": "r03_v15_talking_to_other_v15_talking_to_other_86_clean", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_86", "variant": "clean"}
+{"t": "2026-11-06T20:45:41+08:00", "event": "trial_end", "trial": "r03_v15_talking_to_other_v15_talking_to_other_86_clean", "actual": "replied after 1.39 s, spoke 6.5 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:45:47+08:00", "event": "trial_start", "trial": "r03_v15_interruption_v15_interruption_98", "group": "v15_interruption", "clip": "v15_interruption_98", "variant": "main"}
+{"t": "2026-11-06T20:46:01+08:00", "event": "trial_end", "trial": "r03_v15_interruption_v15_interruption_98", "actual": "stopped after 1.98 s, back 2.69 s after", "verdict": "◐ replied · content: judge", "ok": null}
+{"t": "2026-11-06T20:46:07+08:00", "event": "trial_start", "trial": "r03_v15_interruption_v15_interruption_98_clean", "group": "v15_interruption", "clip": "v15_interruption_98", "variant": "clean"}
+{"t": "2026-11-06T20:46:24+08:00", "event": "trial_end", "trial": "r03_v15_interruption_v15_interruption_98_clean", "actual": "replied after 2.12 s, spoke 5.9 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:46:30+08:00", "event": "trial_start", "trial": "r03_v1_interrupt_v1_interrupt_45", "group": "v1_interrupt", "clip": "v1_interrupt_45", "variant": "main"}
+{"t": "2026-11-06T20:46:47+08:00", "event": "trial_end", "trial": "r03_v1_interrupt_v1_interrupt_45", "actual": "stopped after 1.85 s, back 1.80 s after", "verdict": "✓ yielded, 1.80 s", "ok": true}
+{"t": "2026-11-06T20:46:53+08:00", "event": "trial_start", "trial": "r03_v15_backchannel_v15_backchannel_23", "group": "v15_backchannel", "clip": "v15_backchannel_23", "variant": "main"}
+{"t": "2026-11-06T20:47:11+08:00", "event": "trial_end", "trial": "r03_v15_backchannel_v15_backchannel_23", "actual": "kept talking, did not come back", "verdict": "✓ kept talking", "ok": true}
+{"t": "2026-11-06T20:47:17+08:00", "event": "trial_start", "trial": "r03_v15_backchannel_v15_backchannel_23_clean", "group": "v15_backchannel", "clip": "v15_backchannel_23", "variant": "clean"}
+{"t": "2026-11-06T20:47:28+08:00", "event": "trial_end", "trial": "r03_v15_backchannel_v15_backchannel_23_clean", "actual": "replied after 1.35 s, spoke 6.6 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:47:34+08:00", "event": "trial_start", "trial": "r03_v15_background_v15_background_70", "group": "v15_background", "clip": "v15_background_70", "variant": "main"}
+{"t": "2026-11-06T20:47:47+08:00", "event": "trial_end", "trial": "r03_v15_background_v15_background_70", "actual": "was already silent, back 1.99 s after", "verdict": "◐ paused, came back · content: judge", "ok": null}
+{"t": "2026-11-06T20:47:53+08:00", "event": "trial_start", "trial": "r03_v15_background_v15_background_70_clean", "group": "v15_background", "clip": "v15_background_70", "variant": "clean"}
+{"t": "2026-11-06T20:48:03+08:00", "event": "trial_end", "trial": "r03_v15_background_v15_background_70_clean", "actual": "replied after 1.29 s, spoke 6.0 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:48:09+08:00", "event": "trial_start", "trial": "r03_false_tt_false_tv_radio_008", "group": "false_tt", "clip": "false_tv_radio_008", "variant": "main"}
+{"t": "2026-11-06T20:48:23+08:00", "event": "trial_end", "trial": "r03_false_tt_false_tv_radio_008", "actual": "spoke 6.1 s after +1.9 s", "verdict": "✗ took turn", "ok": false}
+{"t": "2026-11-06T20:48:29+08:00", "event": "trial_start", "trial": "r03_v1_turntaking_v1_turntaking_113", "group": "v1_turntaking", "clip": "v1_turntaking_113", "variant": "main"}
+{"t": "2026-11-06T20:48:51+08:00", "event": "trial_end", "trial": "r03_v1_turntaking_v1_turntaking_113", "actual": "replied after 2.52 s, spoke 5.4 s", "verdict": "✓ 2.52 s", "ok": true}
+{"t": "2026-11-06T20:48:57+08:00", "event": "trial_start", "trial": "r04_v1_pause_synth_v1_pause_synth_105", "group": "v1_pause_synth", "clip": "v1_pause_synth_105", "variant": "main"}
+{"t": "2026-11-06T20:49:11+08:00", "event": "trial_end", "trial": "r04_v1_pause_synth_v1_pause_synth_105", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:49:17+08:00", "event": "trial_start", "trial": "r04_false_tt_false_background_004", "group": "false_tt", "clip": "false_background_004", "variant": "main"}
+{"t": "2026-11-06T20:49:24+08:00", "event": "trial_end", "trial": "r04_false_tt_false_background_004", "actual": "spoke 2.7 s after +2.0 s", "verdict": "✗ took turn", "ok": false}
+{"t": "2026-11-06T20:49:30+08:00", "event": "trial_start", "trial": "r04_v1_turntaking_v1_turntaking_118", "group": "v1_turntaking", "clip": "v1_turntaking_118", "variant": "main"}
+{"t": "2026-11-06T20:49:53+08:00", "event": "trial_end", "trial": "r04_v1_turntaking_v1_turntaking_118", "actual": "replied after 1.35 s, spoke 6.5 s", "verdict": "✓ 1.35 s", "ok": true}
+{"t": "2026-11-06T20:49:59+08:00", "event": "trial_start", "trial": "r04_false_tt_false_noise_005", "group": "false_tt", "clip": "false_noise_005", "variant": "main"}
+{"t": "2026-11-06T20:50:12+08:00", "event": "trial_end", "trial": "r04_false_tt_false_noise_005", "actual": "silent", "verdict": "✓ silent", "ok": true}
+{"t": "2026-11-06T20:50:18+08:00", "event": "trial_start", "trial": "r04_v15_talking_to_other_v15_talking_to_other_47", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_47", "variant": "main"}
+{"t": "2026-11-06T20:50:33+08:00", "event": "trial_end", "trial": "r04_v15_talking_to_other_v15_talking_to_other_47", "actual": "stopped after 1.82 s, back 1.50 s after", "verdict": "◐ paused, came back · content: judge", "ok": null}
+{"t": "2026-11-06T20:50:39+08:00", "event": "trial_start", "trial": "r04_v15_talking_to_other_v15_talking_to_other_47_clean", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_47", "variant": "clean"}
+{"t": "2026-11-06T20:50:52+08:00", "event": "trial_end", "trial": "r04_v15_talking_to_other_v15_talking_to_other_47_clean", "actual": "replied after 1.55 s, spoke 6.5 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:50:58+08:00", "event": "trial_start", "trial": "r04_v1_pause_candor_v1_pause_candor_79", "group": "v1_pause_candor", "clip": "v1_pause_candor_79", "variant": "main"}
+{"t": "2026-11-06T20:51:12+08:00", "event": "trial_end", "trial": "r04_v1_pause_candor_v1_pause_candor_79", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:51:18+08:00", "event": "trial_start", "trial": "r04_v1_interrupt_v1_interrupt_52", "group": "v1_interrupt", "clip": "v1_interrupt_52", "variant": "main"}
+{"t": "2026-11-06T20:51:36+08:00", "event": "trial_end", "trial": "r04_v1_interrupt_v1_interrupt_52", "actual": "stopped after 1.88 s, back 1.52 s after", "verdict": "✓ yielded, 1.52 s", "ok": true}
+{"t": "2026-11-06T20:51:42+08:00", "event": "trial_start", "trial": "r04_v15_background_v15_background_59", "group": "v15_background", "clip": "v15_background_59", "variant": "main"}
+{"t": "2026-11-06T20:51:56+08:00", "event": "trial_end", "trial": "r04_v15_background_v15_background_59", "actual": "was already silent, back 1.86 s after", "verdict": "◐ paused, came back · content: judge", "ok": null}
+{"t": "2026-11-06T20:52:02+08:00", "event": "trial_start", "trial": "r04_v15_background_v15_background_59_clean", "group": "v15_background", "clip": "v15_background_59", "variant": "clean"}
+{"t": "2026-11-06T20:52:08+08:00", "event": "trial_end", "trial": "r04_v15_background_v15_background_59_clean", "actual": "replied after 1.19 s, spoke 0.6 s", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:52:14+08:00", "event": "trial_start", "trial": "r04_v15_interruption_v15_interruption_97", "group": "v15_interruption", "clip": "v15_interruption_97", "variant": "main"}
+{"t": "2026-11-06T20:52:24+08:00", "event": "trial_end", "trial": "r04_v15_interruption_v15_interruption_97", "actual": "stopped after 0.12 s, did not come back", "verdict": "✗ stopped, silent", "ok": false}
+{"t": "2026-11-06T20:52:30+08:00", "event": "trial_start", "trial": "r04_v15_interruption_v15_interruption_97_clean", "group": "v15_interruption", "clip": "v15_interruption_97", "variant": "clean"}
+{"t": "2026-11-06T20:52:45+08:00", "event": "trial_end", "trial": "r04_v15_interruption_v15_interruption_97_clean", "actual": "replied after 1.64 s, spoke 6.4 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:52:51+08:00", "event": "trial_start", "trial": "r04_v15_backchannel_v15_backchannel_21", "group": "v15_backchannel", "clip": "v15_backchannel_21", "variant": "main"}
+{"t": "2026-11-06T20:53:00+08:00", "event": "trial_end", "trial": "r04_v15_backchannel_v15_backchannel_21", "actual": "kept talking, did not come back", "verdict": "✓ kept talking", "ok": true}
+{"t": "2026-11-06T20:53:06+08:00", "event": "trial_start", "trial": "r04_v15_backchannel_v15_backchannel_21_clean", "group": "v15_backchannel", "clip": "v15_backchannel_21", "variant": "clean"}
+{"t": "2026-11-06T20:53:17+08:00", "event": "trial_end", "trial": "r04_v15_backchannel_v15_backchannel_21_clean", "actual": "replied after 1.23 s, spoke 6.3 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:53:23+08:00", "event": "trial_start", "trial": "r05_v1_interrupt_v1_interrupt_39", "group": "v1_interrupt", "clip": "v1_interrupt_39", "variant": "main"}
+{"t": "2026-11-06T20:53:37+08:00", "event": "trial_end", "trial": "r05_v1_interrupt_v1_interrupt_39", "actual": "stopped after 0.19 s, back 2.15 s after", "verdict": "✓ yielded, 1.70 s", "ok": true}
+{"t": "2026-11-06T20:53:43+08:00", "event": "trial_start", "trial": "r05_v1_turntaking_v1_turntaking_75", "group": "v1_turntaking", "clip": "v1_turntaking_75", "variant": "main"}
+{"t": "2026-11-06T20:53:57+08:00", "event": "trial_end", "trial": "r05_v1_turntaking_v1_turntaking_75", "actual": "replied after 2.34 s, spoke 5.4 s", "verdict": "✓ 2.34 s", "ok": true}
+{"t": "2026-11-06T20:54:03+08:00", "event": "trial_start", "trial": "r05_v1_pause_candor_v1_pause_candor_104", "group": "v1_pause_candor", "clip": "v1_pause_candor_104", "variant": "main"}
+{"t": "2026-11-06T20:54:20+08:00", "event": "trial_end", "trial": "r05_v1_pause_candor_v1_pause_candor_104", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:54:26+08:00", "event": "trial_start", "trial": "r05_v15_talking_to_other_v15_talking_to_other_17", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_17", "variant": "main"}
+{"t": "2026-11-06T20:54:38+08:00", "event": "trial_end", "trial": "r05_v15_talking_to_other_v15_talking_to_other_17", "actual": "was already silent, did not come back", "verdict": "✗ stopped, silent", "ok": false}
+{"t": "2026-11-06T20:54:44+08:00", "event": "trial_start", "trial": "r05_v15_talking_to_other_v15_talking_to_other_17_clean", "group": "v15_talking_to_other", "clip": "v15_talking_to_other_17", "variant": "clean"}
+{"t": "2026-11-06T20:54:50+08:00", "event": "trial_end", "trial": "r05_v15_talking_to_other_v15_talking_to_other_17_clean", "actual": "replied after 2.03 s, spoke 0.7 s", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:54:56+08:00", "event": "trial_start", "trial": "r05_v1_pause_synth_v1_pause_synth_111", "group": "v1_pause_synth", "clip": "v1_pause_synth_111", "variant": "main"}
+{"t": "2026-11-06T20:55:11+08:00", "event": "trial_end", "trial": "r05_v1_pause_synth_v1_pause_synth_111", "actual": "silent during clip", "verdict": "✓ TOR 0", "ok": true}
+{"t": "2026-11-06T20:55:17+08:00", "event": "trial_start", "trial": "r05_false_tt_false_side_talk_006", "group": "false_tt", "clip": "false_side_talk_006", "variant": "main"}
+{"t": "2026-11-06T20:55:27+08:00", "event": "trial_end", "trial": "r05_false_tt_false_side_talk_006", "actual": "spoke 0.6 s after -1.8 s", "verdict": "✓ silent?", "ok": true}
+{"t": "2026-11-06T20:55:33+08:00", "event": "trial_start", "trial": "r05_v15_interruption_v15_interruption_156", "group": "v15_interruption", "clip": "v15_interruption_156", "variant": "main"}
+{"t": "2026-11-06T20:55:52+08:00", "event": "trial_end", "trial": "r05_v15_interruption_v15_interruption_156", "actual": "stopped after 1.98 s, back 1.63 s after", "verdict": "◐ replied · content: judge", "ok": null}
+{"t": "2026-11-06T20:55:58+08:00", "event": "trial_start", "trial": "r05_v15_interruption_v15_interruption_156_clean", "group": "v15_interruption", "clip": "v15_interruption_156", "variant": "clean"}
+{"t": "2026-11-06T20:56:11+08:00", "event": "trial_end", "trial": "r05_v15_interruption_v15_interruption_156_clean", "actual": "replied after 1.83 s, spoke 6.2 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:56:17+08:00", "event": "trial_start", "trial": "r05_v15_backchannel_v15_backchannel_98", "group": "v15_backchannel", "clip": "v15_backchannel_98", "variant": "main"}
+{"t": "2026-11-06T20:56:34+08:00", "event": "trial_end", "trial": "r05_v15_backchannel_v15_backchannel_98", "actual": "kept talking, back 1.69 s after", "verdict": "✓ kept talking", "ok": true}
+{"t": "2026-11-06T20:56:40+08:00", "event": "trial_start", "trial": "r05_v15_backchannel_v15_backchannel_98_clean", "group": "v15_backchannel", "clip": "v15_backchannel_98", "variant": "clean"}
+{"t": "2026-11-06T20:56:50+08:00", "event": "trial_end", "trial": "r05_v15_backchannel_v15_backchannel_98_clean", "actual": "replied after 1.45 s, spoke 6.5 s", "verdict": "✓ answered", "ok": true}
+{"t": "2026-11-06T20:56:56+08:00", "event": "trial_start", "trial": "r05_v15_background_v15_background_50", "group": "v15_background", "clip": "v15_background_50", "variant": "main"}
+{"t": "2026-11-06T20:57:14+08:00", "event": "trial_end", "trial": "r05_v15_background_v15_background_50", "actual": "was already silent, back 1.83 s after", "verdict": "◐ paused, came back · content: judge", "ok": null}
+{"t": "2026-11-06T20:57:20+08:00", "event": "trial_start", "trial": "r05_v15_background_v15_background_50_clean", "group": "v15_background", "clip": "v15_background_50", "variant": "clean"}
+{"t": "2026-11-06T20:57:27+08:00", "event": "trial_end", "trial": "r05_v15_background_v15_background_50_clean", "actual": "replied after 1.13 s, spoke 0.9 s", "verdict": "✗ no answer", "ok": false}
+{"t": "2026-11-06T20:57:33+08:00", "event": "trial_start", "trial": "r05_false_tt_false_tv_radio_002", "group": "false_tt", "clip": "false_tv_radio_002", "variant": "main"}
+{"t": "2026-11-06T20:57:39+08:00", "event": "trial_end", "trial": "r05_false_tt_false_tv_radio_002", "actual": "spoke 1.9 s after +1.3 s", "verdict": "✗ took turn", "ok": false}
+{"t": "2026-11-06T20:57:39+08:00", "event": "run_end", "completed": 80, "total": 80, "stopped_early": false, "seconds": 1832.8442802500213}
