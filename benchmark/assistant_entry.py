@@ -19,6 +19,20 @@ from pathlib import Path
 PROJECT_MARKER = "alfred/voice.py"
 
 
+def describe() -> dict:
+    """The models, for the results card in fd-benchmark's report."""
+    from alfred.config import load_config
+
+    config = load_config()
+    speech = f"{config.live_model} (speech to speech: hears and speaks itself)"
+    return {
+        "ASR": speech,
+        "LLM": f"{speech}; router {config.router_model} for look-ups",
+        "TTS": speech,
+        "VAD": f"{config.live_model} turn detection",
+    }
+
+
 def audio_rates() -> tuple[int, int]:
     """Alfred's pipeline runs at 16 kHz both ways (alfred/audio.py: SAMPLE_RATE)."""
     return 16000, 16000

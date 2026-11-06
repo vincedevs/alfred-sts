@@ -9,6 +9,8 @@ What differs, and why:
 - The transport is fd-benchmark's (clips in, Alfred's voice out), not the microphone.
 - No wake word and no idle close: one continuous session for the whole round, which the
   benchmark ends.
+- One extra step, FirstAudioMark, tells fd-benchmark when GPT-Live's first audio of each
+  reply comes out (its "TTS first audio" stage); it changes nothing else.
 - No background jobs, memory or reminders: no tools besides web search, no database, and
   nothing written to ~/.alfred. Their prompt sections are left out (benchmark/prompts.py).
 """
@@ -17,10 +19,11 @@ from dataclasses import replace
 
 from loguru import logger
 from pipecat.adapters.llm.schemas.tools_schema import AdapterType, ToolsSchema
-from pipecat.frames.frames import LLMRunFrame
+from pipecat.frames.frames import LLMRunFrame, SpeechOutputAudioRawFrame, TTSStartedFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.workers.runner import WorkerRunner
 
 import alfred.voice as alfred_voice
@@ -38,7 +41,9 @@ async def build_benchmark_conversation(transport, config: Config):
     )
     context = LLMContext(messages=[], tools=tools)
     user_turns, alfred_turns = LLMContextAggregatorPair(context)
-    pipeline = Pipeline([transport.input(), user_turns, llm, transport.output(), alfred_turns])
+    pipeline = Pipeline(
+        [transport.input(), user_turns, llm, FirstAudioMark(), transport.output(), alfred_turns]
+    )
     worker = alfred_voice.create_worker(pipeline, replace(config, idle_seconds=ONE_HOUR))
 
     @llm.event_handler("on_session_started")
@@ -57,6 +62,33 @@ async def build_benchmark_conversation(transport, config: Config):
         await worker.cancel()
 
     return run(), cancel
+
+
+class FirstAudioMark(FrameProcessor):
+    """Tells fd-benchmark when each reply's first audio comes out of GPT-Live, for its "TTS
+    first audio" stage. Its stage marks (adapters/pipecat_marks.py) look for a TTS
+    service's audio frames, and GPT-Live's are a different kind, so without this the stage
+    shows as "not reported". Does nothing outside fd-benchmark's launcher."""
+
+    def __init__(self):
+        super().__init__()
+        self._reply_started = False
+        try:
+            from fdbench_marks import mark  # on the path only when fd-benchmark runs Alfred
+
+            self._mark = mark
+        except ImportError:
+            self._mark = None
+
+    async def process_frame(self, frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TTSStartedFrame):
+            self._reply_started = True
+        elif isinstance(frame, SpeechOutputAudioRawFrame) and self._reply_started:
+            self._reply_started = False
+            if self._mark:
+                self._mark("tts_first_audio")
+        await self.push_frame(frame, direction)
 
 
 def create_gpt_live(config: Config):
