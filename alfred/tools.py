@@ -38,7 +38,7 @@ def job_tools(runner: TaskRunner, db: Database, questions: Questions) -> list:
                     "task_id": task_id,
                     "status": "running",
                     "note": "Still working. Tell the user in a few words that you're on "
-                    "it; the result is announced when it's ready.",
+                    "it, and that they'll hear a chime when it's ready.",
                 }
             )
         else:
